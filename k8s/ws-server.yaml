@@ -1,3 +1,36 @@
+# "인프라 현황" 페이지가 Pod 목록을 보여줄 수 있도록, ws-server 전용 ServiceAccount에
+# aiops 네임스페이스 안에서 Pod를 읽기만 할 수 있는 최소 권한만 부여한다 (list/get, 쓰기 권한 없음,
+# 다른 네임스페이스 접근 불가 - RBAC은 항상 필요한 만큼만).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ws-server
+  namespace: aiops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ws-server-pod-reader
+  namespace: aiops
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ws-server-pod-reader
+  namespace: aiops
+subjects:
+  - kind: ServiceAccount
+    name: ws-server
+    namespace: aiops
+roleRef:
+  kind: Role
+  name: ws-server-pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -11,6 +44,7 @@ spec:
     metadata:
       labels: { app: ws-server }
     spec:
+      serviceAccountName: ws-server
       containers:
         - name: ws-server
           image: aiops/ws-server:local
@@ -32,6 +66,8 @@ spec:
               value: "aiops123"
             - name: POSTGRES_DB
               value: "aiops_db"
+            - name: AWS_REGION
+              value: "ap-northeast-2"
           resources:
             requests: { cpu: "50m", memory: "128Mi" }
             limits: { cpu: "500m", memory: "256Mi" }

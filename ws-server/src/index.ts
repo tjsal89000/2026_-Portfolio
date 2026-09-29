@@ -15,6 +15,7 @@ import express from "express";
 import { Redis } from "ioredis";
 import { WebSocket, WebSocketServer } from "ws";
 import { getLatestReports } from "./reports.js";
+import { listEc2Instances, listPods } from "./infra.js";
 
 const PORT = 8096;
 
@@ -24,6 +25,25 @@ app.get("/reports/latest", async (req, res) => {
   const limit = Number(req.query.limit ?? 5);
   const reports = await getLatestReports(limit);
   res.json(reports);
+});
+
+// "인프라 현황" 페이지가 쓰는 엔드포인트 - EC2/Pod 조회가 실패해도(로컬 개발 환경처럼
+// 자격증명/클러스터가 없는 경우) 500으로 죽이지 않고 빈 배열 + 에러 메시지로 응답해서
+// 대시보드 쪽은 "이 환경에서는 조회 불가"만 보여주면 되게 한다.
+app.get("/infra/ec2", async (_req, res) => {
+  try {
+    res.json({ instances: await listEc2Instances() });
+  } catch (err) {
+    res.json({ instances: [], error: (err as Error).message });
+  }
+});
+
+app.get("/infra/pods", async (_req, res) => {
+  try {
+    res.json({ pods: await listPods() });
+  } catch (err) {
+    res.json({ pods: [], error: (err as Error).message });
+  }
 });
 
 const server = http.createServer(app);

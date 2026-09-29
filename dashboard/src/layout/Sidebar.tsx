@@ -5,6 +5,7 @@ import NotificationsIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOffOutlined";
 import SummarizeIcon from "@mui/icons-material/SummarizeOutlined";
 import ChecklistIcon from "@mui/icons-material/ChecklistOutlined";
+import DnsIcon from "@mui/icons-material/DnsOutlined";
 import InsightsIcon from "@mui/icons-material/InsightsOutlined";
 import AccountTreeIcon from "@mui/icons-material/AccountTreeOutlined";
 import QueryStatsIcon from "@mui/icons-material/QueryStatsOutlined";
@@ -40,6 +41,7 @@ const NAV_ITEMS: { label: string; icon: ReactElement; view: ViewKey }[] = [
   { label: "이상탐지 알림", icon: <NotificationsIcon />, view: "overview" },
   { label: "AI 리포트", icon: <SummarizeIcon />, view: "overview" },
   { label: "진행 상황", icon: <ChecklistIcon />, view: "progress" },
+  { label: "인프라 현황", icon: <DnsIcon />, view: "infra" },
 ];
 
 // 이 대시보드 안의 화면이 아니라, nginx가 같은 http://localhost 아래로 묶어준

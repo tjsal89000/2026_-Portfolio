@@ -4,6 +4,7 @@ import Sidebar, { DRAWER_WIDTH } from "./layout/Sidebar";
 import TopBar from "./layout/TopBar";
 import OverviewPage from "./pages/OverviewPage";
 import ProgressPage from "./pages/ProgressPage";
+import InfraPage from "./pages/InfraPage";
 import type { ViewKey } from "./viewKey";
 
 export default function App() {
@@ -22,7 +23,9 @@ export default function App() {
           minHeight: "100vh",
         }}
       >
-        {view === "overview" ? <OverviewPage /> : <ProgressPage />}
+        {view === "overview" && <OverviewPage />}
+        {view === "progress" && <ProgressPage />}
+        {view === "infra" && <InfraPage />}
       </Box>
     </Box>
   );

@@ -78,11 +78,47 @@ resource "aws_security_group" "this" {
   }
 }
 
+# "인프라 현황" 대시보드 페이지가 EC2 목록을 조회할 때, 정적 AWS 키를 앱 설정에 박아넣지 않고
+# 이 인스턴스 프로파일(IAM Role)을 통해 조회하게 한다. 조회(Describe)만 허용하는 최소 권한 -
+# 이 인스턴스가 자기 자신을 포함한 EC2 목록을 "볼" 수는 있어도 생성/삭제/변경은 못 한다.
+resource "aws_iam_role" "ec2_describe" {
+  name = "aiops-platform-ec2-describe-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "ec2_describe" {
+  name = "ec2-describe-only"
+  role = aws_iam_role.ec2_describe.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ec2:DescribeInstances"]
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_iam_instance_profile" "this" {
+  name = "aiops-platform-instance-profile"
+  role = aws_iam_role.ec2_describe.name
+}
+
 resource "aws_instance" "app" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
   key_name               = aws_key_pair.this.key_name
   vpc_security_group_ids = [aws_security_group.this.id]
+  iam_instance_profile   = aws_iam_instance_profile.this.name
 
   root_block_device {
     volume_size = 30 # Docker 이미지 9개 + Kafka/Postgres 데이터까지 담아야 해서 기본 8GB보다 넉넉하게
