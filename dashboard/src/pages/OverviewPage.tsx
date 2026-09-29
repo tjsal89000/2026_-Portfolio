@@ -3,6 +3,7 @@ import { Box, Grid, Paper, Toolbar, Typography, List, ListItem, ListItemText, Ch
 import KpiCard from "../components/KpiCard";
 import TrafficSparkline from "../components/TrafficSparkline";
 import { useLiveFeed } from "../hooks/useLiveFeed";
+import { API_ORIGIN } from "../apiOrigin";
 
 interface ReportRow {
   id: number;
@@ -32,7 +33,7 @@ export default function OverviewPage() {
     const fetchLag = async () => {
       try {
         const query = encodeURIComponent('sum(kafka_consumergroup_lag{consumergroup="db-writer-consumer-group"})');
-        const res = await fetch(`http://localhost/prometheus/api/v1/query?query=${query}`);
+        const res = await fetch(`${API_ORIGIN}/prometheus/api/v1/query?query=${query}`);
         const json = await res.json();
         const value = json?.data?.result?.[0]?.value?.[1];
         if (value !== undefined) setKafkaLag(Number(value));
@@ -50,7 +51,7 @@ export default function OverviewPage() {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const res = await fetch("http://localhost/ws-server/reports/latest?limit=1");
+        const res = await fetch(`${API_ORIGIN}/ws-server/reports/latest?limit=1`);
         const json = await res.json();
         setReports(json);
       } catch {

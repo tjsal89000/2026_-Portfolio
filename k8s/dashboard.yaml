@@ -1,9 +1,7 @@
-# 알려진 제약: 대시보드 프론트엔드 코드(Sidebar.tsx의 EXTERNAL_TOOLS, useLiveFeed.ts의 WS_URL,
-# App.tsx의 fetch 주소들)는 빌드 시점에 "http://localhost"가 정적으로 박혀있다. 로컬 개발/포트
-# 포워딩 환경에서는 문제가 없지만, 실제 EC2 공인 IP나 도메인으로 접근하는 배포(Phase 12)에서는
-# 이 주소들이 브라우저 기준으로 깨진다 - Phase 12에서 빌드 시점 주입(Vite build-arg)이나 컨테이너
-# 시작 시 런타임 설정 스크립트 주입 중 하나로 해결하기로 하고, Phase 11(컨테이너화 자체)의
-# 범위를 넘어서는 별도 과제로 남겨둔다.
+# (Phase 12에서 해결됨) 예전엔 프론트엔드 코드에 "http://localhost"가 하드코딩돼 있어서
+# EC2 공인 IP로 접근하면 브라우저가 자기 자신의 localhost로 요청을 보내버려 깨졌다 -
+# window.location.origin 기준으로 주소를 동적 생성하도록 고쳐서(dashboard/src/apiOrigin.ts)
+# 빌드 시점 주입 없이도 로컬/EC2 어디서 열어도 항상 맞게 만들었다.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

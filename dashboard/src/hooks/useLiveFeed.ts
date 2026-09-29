@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { WS_ORIGIN } from "../apiOrigin";
 
 export interface PaymentEvent {
   idempotencyKey: string;
@@ -23,8 +24,8 @@ interface FeedAlertItem extends AlertEvent {
 }
 
 // nginx가 "/ws-server/" 프리픽스를 벗겨서 ws-server 자신의 "/ws" 경로로 그대로 전달한다
-// (관측성 스택 전체와 같은 "http://localhost 하나로 묶기" 원칙).
-const WS_URL = "ws://localhost/ws-server/ws";
+// (관측성 스택 전체와 같은 "하나의 주소로 묶기" 원칙). 주소 자체는 apiOrigin.ts 참고.
+const WS_URL = `${WS_ORIGIN}/ws-server/ws`;
 const MAX_FEED_ITEMS = 20;
 const SPARKLINE_WINDOW_SECONDS = 60;
 const RECENT_WINDOW_MS = 60_000;

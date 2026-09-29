@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Chip, Paper, Table, TableBody, TableCell, TableHead, TableRow, Toolbar, Typography } from "@mui/material";
+import { API_ORIGIN } from "../apiOrigin";
 
 interface Ec2Instance {
   instanceId: string;
@@ -43,7 +44,7 @@ export default function InfraPage() {
   useEffect(() => {
     const fetchEc2 = async () => {
       try {
-        const res = await fetch("http://localhost/ws-server/infra/ec2");
+        const res = await fetch(`${API_ORIGIN}/ws-server/infra/ec2`);
         const json = await res.json();
         setInstances(json.instances ?? []);
         setEc2Error(json.error ?? null);
@@ -59,7 +60,7 @@ export default function InfraPage() {
   useEffect(() => {
     const fetchPods = async () => {
       try {
-        const res = await fetch("http://localhost/ws-server/infra/pods");
+        const res = await fetch(`${API_ORIGIN}/ws-server/infra/pods`);
         const json = await res.json();
         setPods(json.pods ?? []);
         setPodsError(json.error ?? null);

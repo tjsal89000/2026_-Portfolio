@@ -24,11 +24,10 @@ import {
 } from "@mui/material";
 import { awsColors } from "../theme";
 import type { ViewKey } from "../viewKey";
+import { API_ORIGIN } from "../apiOrigin";
 
 // 이상탐지 에이전트(Python)의 제어 서버를 nginx가 이 경로로 묶어준 것.
-// EXTERNAL_TOOLS와 같은 이유로 절대경로(http://localhost) 고정 - 대시보드를
-// Vite(5173) 직접 접속으로 열어도 항상 nginx 게이트웨이를 거치게 함.
-const ALERTS_API_BASE = "http://localhost/alerts";
+const ALERTS_API_BASE = `${API_ORIGIN}/alerts`;
 
 const DRAWER_WIDTH = 240;
 
@@ -44,21 +43,21 @@ const NAV_ITEMS: { label: string; icon: ReactElement; view: ViewKey }[] = [
   { label: "인프라 현황", icon: <DnsIcon />, view: "infra" },
 ];
 
-// 이 대시보드 안의 화면이 아니라, nginx가 같은 http://localhost 아래로 묶어준
-// 별개의 도구(운영 대시보드/워크플로우/메트릭)로 나가는 링크. 그래서 새 탭으로 열리게 함.
+// 이 대시보드 안의 화면이 아니라, nginx가 같은 origin 아래로 묶어준 별개의 도구(운영
+// 대시보드/워크플로우/메트릭)로 나가는 링크. 그래서 새 탭으로 열리게 함.
 //
-// href를 "/grafana/"처럼 상대경로로 쓰면, 지금 이 페이지를 어느 포트로 보고 있느냐에 따라
-// 링크가 엉뚱한 곳으로 감 - 예를 들어 nginx(80번 포트)가 아니라 Vite 개발서버(5173번)로
-// 대시보드를 직접 열어본 경우, "/grafana/"는 5173번 포트 자신에게 요청이 가버려서
-// (Vite가 그 경로를 모르니) Vite의 "base URL 안 맞음" 에러 페이지가 떴었다.
-// 그래서 nginx가 떠 있는 80번 포트를 절대경로로 명시해 항상 게이트웨이를 거치게 고정한다.
+// 이전엔 "http://localhost"를 하드코딩했는데, 로컬에서는 문제없이 동작하다 EC2에 배포하니
+// 브라우저가 그 주소 그대로(자기 자신의 localhost) 요청을 보내버려서 깨졌다 - API_ORIGIN이
+// 항상 "지금 이 페이지를 연 주소"를 반영하므로 이걸 기준으로 링크를 만든다.
 const EXTERNAL_TOOLS = [
   // /grafana/만 열면 우리 대시보드가 아니라 Grafana 기본 홈 화면이 뜨므로, 대시보드 UID까지 직접 지정
-  { label: "Grafana", icon: <InsightsIcon />, href: "http://localhost/grafana/d/payment-aiops-platform/payment-aiops-platform" },
+  { label: "Grafana", icon: <InsightsIcon />, href: `${API_ORIGIN}/grafana/d/payment-aiops-platform/payment-aiops-platform` },
   // n8n은 서브패스(reverse proxy) 배포 자체가 n8n 공식 이슈로 깨지는 경우가 많아
-  // (github.com/n8n-io/n8n issues #18596, #19635) nginx를 거치지 않고 자기 포트로 바로 연결
-  { label: "n8n 워크플로우", icon: <AccountTreeIcon />, href: "http://localhost:5678/" },
-  { label: "Prometheus", icon: <QueryStatsIcon />, href: "http://localhost/prometheus/" },
+  // (github.com/n8n-io/n8n issues #18596, #19635) nginx가 직접 프록시하지 않고 자기 포트로
+  // 302 리다이렉트만 해준다(observability/nginx.conf, k8s/nginx.yaml의 /n8n/ 위치 참고) -
+  // 그래서 여기서도 n8n의 실제 포트를 몰라도 되고, 그냥 같은 origin의 /n8n/으로 보내면 된다.
+  { label: "n8n 워크플로우", icon: <AccountTreeIcon />, href: `${API_ORIGIN}/n8n/` },
+  { label: "Prometheus", icon: <QueryStatsIcon />, href: `${API_ORIGIN}/prometheus/` },
 ];
 
 interface SidebarProps {
