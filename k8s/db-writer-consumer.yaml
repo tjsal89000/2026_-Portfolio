@@ -35,13 +35,19 @@ spec:
           resources:
             requests: { cpu: "250m", memory: "384Mi" }
             limits: { cpu: "1", memory: "768Mi" }
+          # payment-api와 같은 이유(문제해결_로그.md [6]번 참고 - 이 프로젝트에서 클러스터
+          # 전체가 동시에 재시작되면 JVM+Kafka 부트스트랩이 겹쳐 기동이 70초 이상 걸리는 걸
+          # 실제로 겪음) - startupProbe로 기동 시간을 넉넉히 봐주고, 그동안은 liveness가
+          # 오탐으로 죽이지 않게 분리한다.
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            periodSeconds: 5
+            failureThreshold: 40
           readinessProbe:
             httpGet: { path: /actuator/health, port: 8081 }
-            initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
             httpGet: { path: /actuator/health, port: 8081 }
-            initialDelaySeconds: 30
             periodSeconds: 15
 ---
 apiVersion: v1

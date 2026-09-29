@@ -28,13 +28,21 @@ spec:
           resources:
             requests: { cpu: "250m", memory: "384Mi" }
             limits: { cpu: "1", memory: "768Mi" }
+          # JVM 기동 자체가 느린 데다, Kafka가 아직 준비되지 않은 상태(예: 클러스터 전체가 같이
+          # 재시작되는 상황)에서는 Kafka AdminClient 부트스트랩 재시도까지 겹쳐서 기동에 70초 이상
+          # 걸리는 걸 실제로 겪었다. liveness probe의 initialDelaySeconds(30s)가 그보다 짧으면,
+          # 앱이 다 뜨기도 전에 "안 죽었나?"를 체크하다 오탐으로 죽이고 재시작 - 그러면 다음
+          # 시도도 다시 느려서 영원히 못 뜨는 상태에 빠진다. startupProbe로 "다 뜰 때까지는
+          # liveness/readiness를 아예 체크하지 않기"를 명시적으로 분리해 이 문제를 해결했다.
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            periodSeconds: 5
+            failureThreshold: 40 # 5초 * 40 = 최대 200초까지 기동 시간을 봐줌
           readinessProbe:
             httpGet: { path: /actuator/health, port: 8080 }
-            initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
             httpGet: { path: /actuator/health, port: 8080 }
-            initialDelaySeconds: 30
             periodSeconds: 15
 ---
 apiVersion: v1
