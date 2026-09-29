@@ -1,0 +1,15 @@
+# 로컬 개발용 n8n 실행 설정. 워크플로우(webhook 수신, 알림, 스케줄 트리거)를
+# 화면 보면서 노드 연결하는 방식으로 만들 것이므로 로컬에서 먼저 띄워 익힌다.
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: aiops-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_SECURE_COOKIE=false   # 로컬 http 개발환경이라 완화 (배포 시 재검토)
+    volumes:
+      - n8n_data:/home/node/.n8n # 워크플로우 설정이 컨테이너 재시작에도 유지되도록
+
+volumes:
+  n8n_data:

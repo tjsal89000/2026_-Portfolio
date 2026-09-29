@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anomaly-detector
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: anomaly-detector }
+  template:
+    metadata:
+      labels: { app: anomaly-detector }
+    spec:
+      containers:
+        - name: anomaly-detector
+          image: aiops/anomaly-detector:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8091
+          env:
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka:9092"
+            - name: N8N_WEBHOOK_URL
+              value: "http://n8n:5678/webhook/payment-anomaly"
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anomaly-detector
+  namespace: aiops
+spec:
+  selector: { app: anomaly-detector }
+  ports:
+    - port: 8091
+      targetPort: 8091

@@ -1,0 +1,6 @@
+/* Vite 기본 템플릿 CSS를 제거함 - MUI의 CssBaseline이 리셋을 담당하므로
+   여기서는 폭 제한/가운데정렬 같은 걸 남겨두면 대시보드 레이아웃이 깨짐 */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}

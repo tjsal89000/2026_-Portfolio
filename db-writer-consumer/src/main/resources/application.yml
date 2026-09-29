@@ -1,0 +1,38 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: db-writer-consumer
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aiops_db
+    username: aiops
+    password: aiops123
+  jpa:
+    hibernate:
+      ddl-auto: none # 스키마는 db/init.sql로 직접 관리 - JPA가 테이블을 만들거나 바꾸지 않게 함
+    open-in-view: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: db-writer-consumer-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false # 이전 프로젝트에서 auto-commit이 실패한 메시지까지 커밋해 유실됐던 문제를 반복하지 않기 위함
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+payment:
+  topic: payment.events
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: always
+  # management.tracing.*/management.otlp.tracing.*는 이 버전에서 자동설정이 없어 무효함
+  # (payment-api와 동일한 이유, TracingConfig.java에서 수동 배선)

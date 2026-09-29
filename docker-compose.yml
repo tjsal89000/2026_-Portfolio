@@ -1,0 +1,125 @@
+# 로컬 개발용 인프라. Phase가 진행될 때마다 필요한 서비스를 하나씩 추가해나간다
+# (Phase 1: Kafka만 / Phase 2: Postgres+Redis 추가 / Phase 3: Prometheus+Grafana 추가 예정).
+# Spring Boot 앱들은 컨테이너가 아니라 로컬 호스트에서 직접 실행하므로, 각 서비스 포트를 호스트에 그대로 열어둔다.
+services:
+  postgres:
+    image: postgres:16
+    container_name: aiops-postgres
+    environment:
+      POSTGRES_USER: aiops
+      POSTGRES_PASSWORD: aiops123
+      POSTGRES_DB: aiops_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiops"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: aiops-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: aiops-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: "aiops-platform-cluster-01"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: aiops-kafka-exporter
+    command: ["--kafka.server=kafka:19092"] # 컨테이너 네트워크 안에서는 내부 리스너(19092)로 접근
+    ports:
+      - "9308:9308" # Prometheus가 긁어갈 /metrics 포트
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: aiops-prometheus
+    # nginx가 /prometheus/ 경로로 서빙할 것이므로, Prometheus 자신도 그 경로 기준으로 링크/자산을 생성하게 함
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.route-prefix=/prometheus/
+      - --web.external-url=http://localhost/prometheus/
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
+    # host.docker.internal로 호스트(로컬에서 돌아가는 Java 앱들)에 접근할 수 있게 해줌 (Linux 호환용, Windows/Mac은 기본 지원)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: aiops-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "3200:3200"   # Tempo 자체 API (Grafana가 조회할 때 씀)
+      - "4318:4318"   # OTLP HTTP - Java 앱들이 trace를 여기로 보냄
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: aiops-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true" # 포트폴리오 데모 편의상 로그인 없이 바로 보이게
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      # nginx가 /grafana/ 경로로 서빙하므로, Grafana도 이 경로 기준으로 링크/리다이렉트를 생성하게 함
+      GF_SERVER_ROOT_URL: "http://localhost/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    volumes:
+      - ./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./observability/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./observability/dashboards:/etc/grafana/provisioning/dashboards/json
+    depends_on:
+      - prometheus
+      - tempo
+
+  nginx:
+    image: nginx:alpine
+    container_name: aiops-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./observability/nginx.conf:/etc/nginx/conf.d/default.conf
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - grafana
+      - prometheus
+
+volumes:
+  pgdata:

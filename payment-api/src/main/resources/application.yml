@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: payment-api
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      # key/value-serializer는 KafkaProducerConfig.java에서 커스텀 ObjectMapper와 함께 직접 지정하므로 여기선 생략
+      # (직렬화 방식을 여기 문자열로만 적으면 Instant가 ISO-8601이 아니라 epoch 숫자로 나가버리는 문제가 있었음)
+      # 브로커가 메시지를 실제로 저장했다는 응답까지 받고서야 성공으로 침 (결제 이벤트는 유실되면 안 되므로)
+      acks: all
+
+payment:
+  topic: payment.events
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # actuator가 기본적으로는 health만 외부에 노출함. Prometheus가 긁어갈 수 있게 prometheus도 열어둠
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: always
+  # management.tracing.*/management.otlp.tracing.* 프로퍼티는 이 Spring Boot 버전에서
+  # 자동설정 클래스 자체가 없어 아무 효과가 없다 (TracingConfig.java에서 수동 배선, 문제해결_로그.md [2]번 참고)
+
+resilience4j:
+  retry:
+    instances:
+      kafkaPublish:
+        max-attempts: 3          # 첫 시도 포함 총 3번
+        wait-duration: 200ms     # 재시도 사이 대기시간
+  circuitbreaker:
+    instances:
+      kafkaPublish:
+        sliding-window-size: 10       # 최근 10번의 호출을 보고 판단
+        failure-rate-threshold: 50    # 그중 50% 이상 실패하면 서킷을 염
+        wait-duration-in-open-state: 10s # 서킷을 연 뒤 10초간은 바로 실패 처리(Kafka에 요청 자체를 안 보냄)
+        permitted-number-of-calls-in-half-open-state: 3 # 10초 뒤 3번만 시험적으로 통과시켜봄

@@ -1,0 +1,67 @@
+{
+  "title": "Payment AIOps Platform",
+  "uid": "payment-aiops-platform",
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "title": "서비스 상태 (payment-api / db-writer-consumer)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "up{job=~\"payment-api|db-writer-consumer\"}", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "id": 2, "title": "결제 API 요청 처리량 (초당)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{job=\"payment-api\",uri=\"/payments\"}[1m])) by (status)", "legendFormat": "status {{status}}" }
+      ]
+    },
+    {
+      "id": 3, "title": "결제 API 응답 지연시간 (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"payment-api\",uri=\"/payments\"}[1m])) by (le))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "id": 4, "title": "Kafka Consumer Lag (db-writer-consumer-group)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "kafka_consumergroup_lag{consumergroup=\"db-writer-consumer-group\"}", "legendFormat": "partition {{partition}}" }
+      ]
+    },
+    {
+      "id": 5, "title": "db-writer-consumer Kafka 메시지 처리 건수/소요시간",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "rate(spring_kafka_listener_seconds_count{job=\"db-writer-consumer\"}[1m])", "legendFormat": "처리 건수/초" },
+        { "expr": "spring_kafka_listener_seconds_sum{job=\"db-writer-consumer\"} / spring_kafka_listener_seconds_count{job=\"db-writer-consumer\"}", "legendFormat": "평균 처리시간(초)" }
+      ]
+    },
+    {
+      "id": 6, "title": "JVM 힙 메모리 사용량",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        { "expr": "sum(jvm_memory_used_bytes{area=\"heap\",job=~\"payment-api|db-writer-consumer\"}) by (job)", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "id": 7, "title": "분산 트레이싱 (Tempo)",
+      "type": "text",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "options": {
+        "content": "왼쪽 메뉴 Explore에서 데이터소스를 Tempo로 바꾸고 TraceQL로 조회:\n\n`{resource.service.name=\"payment-api\"}`\n\n결제 API 요청 하나가 Kafka 발행을 거쳐 db-writer-consumer까지 이어지는 trace를 확인할 수 있음 (문제해결_로그.md [2]번 참고)",
+        "mode": "markdown"
+      }
+    }
+  ]
+}

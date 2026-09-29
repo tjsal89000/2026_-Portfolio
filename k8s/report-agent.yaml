@@ -1,0 +1,51 @@
+# GOOGLE_API_KEY는 이 파일에 값을 직접 적지 않는다 (평문 커밋 방지 - 이 프로젝트 전체에서
+# 지켜온 "비밀값은 파일/채팅에 적지 말고 대상 시스템에 직접 넣기" 원칙과 동일).
+# 배포 전에 아래 명령으로 Secret을 먼저 만들어야 한다 (실제 키 값으로 교체):
+#
+#   kubectl create secret generic report-agent-secrets \
+#     --namespace aiops \
+#     --from-literal=GOOGLE_API_KEY=<발급받은_키>
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-agent
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: report-agent }
+  template:
+    metadata:
+      labels: { app: report-agent }
+    spec:
+      containers:
+        - name: report-agent
+          image: aiops/report-agent:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8092
+          env:
+            - name: MCP_SERVER_URL
+              value: "http://mcp-server:8090/mcp"
+            - name: REPORT_DB_DSN
+              value: "dbname=aiops_db user=aiops password=aiops123 host=postgres port=5432"
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: report-agent-secrets
+                  key: GOOGLE_API_KEY
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-agent
+  namespace: aiops
+spec:
+  selector: { app: report-agent }
+  ports:
+    - port: 8092
+      targetPort: 8092

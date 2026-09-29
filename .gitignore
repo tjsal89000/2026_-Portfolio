@@ -1,0 +1,23 @@
+# 의존성 / 빌드 산출물
+node_modules/
+dist/
+target/
+__pycache__/
+*.pyc
+
+# 비밀값 - 이 프로젝트 전체에서 지켜온 "비밀값은 커밋하지 않는다" 원칙
+.env
+.env.*
+!.env.example
+
+# Terraform 상태/변수 (원격 상태를 안 쓰는 로컬 실습 단계라 tfstate에 리소스 ID 등 민감할 수 있는
+# 정보가 그대로 남는다 - 커밋 금지. *.tfvars도 실제 값(키 이름 등)이 들어갈 수 있어 제외)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/*.tfvars.example
+
+# OS/에디터
+.DS_Store
+Thumbs.db

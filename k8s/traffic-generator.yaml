@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: traffic-generator }
+  template:
+    metadata:
+      labels: { app: traffic-generator }
+    spec:
+      containers:
+        - name: traffic-generator
+          image: aiops/traffic-generator:local
+          imagePullPolicy: Never
+          args: ["--tps", "5", "--anomaly-probability", "0.1"]
+          env:
+            # 클러스터 안에서는 nginx를 거칠 필요 없이 게이트웨이 Service로 바로 호출한다
+            # (nginx 경유는 클러스터 밖 브라우저를 위한 것이지, 내부 서비스 간 호출엔 불필요한 홉이다)
+            - name: GATEWAY_URL
+              value: "http://gateway:8095/api/payments"
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }

@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: aiops
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: aiops
+data:
+  init.sql: |
+    -- 컨테이너 최초 생성 시 1회 자동 실행됨 (docker-entrypoint-initdb.d 메커니즘)
+    -- 이전 프로젝트와 같은 멱등성 패턴: idempotency_key UNIQUE 제약이 중복 처리를 막는 최종 방어선
+    CREATE TABLE IF NOT EXISTS payments (
+        id              BIGSERIAL PRIMARY KEY,
+        idempotency_key UUID NOT NULL UNIQUE,
+        merchant_id     VARCHAR(50) NOT NULL,
+        account_id      VARCHAR(50) NOT NULL,
+        amount          BIGINT NOT NULL,
+        currency        VARCHAR(3) NOT NULL,
+        country         VARCHAR(2) NOT NULL,
+        payment_method  VARCHAR(20) NOT NULL,
+        requested_at    TIMESTAMPTZ NOT NULL,
+        processed_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- AI 분석/요약 리포트 에이전트(Phase 8)가 생성한 리포트 저장
+    CREATE TABLE IF NOT EXISTS reports (
+        id           BIGSERIAL PRIMARY KEY,
+        summary      TEXT NOT NULL,
+        generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "aiops"
+            - name: POSTGRES_PASSWORD
+              value: "aiops123"
+            - name: POSTGRES_DB
+              value: "aiops_db"
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: init-script
+          configMap:
+            name: postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: aiops
+spec:
+  selector: { app: postgres }
+  ports:
+    - port: 5432
+      targetPort: 5432

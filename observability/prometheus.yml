@@ -1,0 +1,20 @@
+# Java 서비스들은 컨테이너가 아니라 로컬 호스트에서 직접 떠 있으므로,
+# 이 Prometheus 컨테이너 입장에서는 host.docker.internal로 접근해야 호스트에 도달한다.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: payment-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+
+  - job_name: db-writer-consumer
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8081"]
+
+  - job_name: kafka-exporter
+    static_configs:
+      # kafka-exporter는 같은 docker 네트워크 안에 있으므로 서비스 이름으로 바로 접근
+      - targets: ["kafka-exporter:9308"]

@@ -1,0 +1,10 @@
+# 이 파일이 있으면 Grafana가 뜰 때 dashboards 폴더 안의 JSON들을 자동으로 대시보드로 등록해준다.
+# (이전 프로젝트에서 썼던 "대시보드도 코드로 관리" 패턴과 동일)
+apiVersion: 1
+
+providers:
+  - name: payment-aiops-platform
+    folder: ""
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

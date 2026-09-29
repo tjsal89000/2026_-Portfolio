@@ -1,0 +1,22 @@
+# 로컬 개발용 최소 Tempo 설정. OTLP(HTTP/gRPC)로 trace를 받아서 로컬 디스크에 저장한다.
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        # endpoint를 안 적으면 기본값이 127.0.0.1(컨테이너 내부 루프백)이라, 다른 컨테이너나
+        # 호스트(포트포워딩)에서 절대 접근할 수 없었다. 0.0.0.0으로 명시해서 외부 접근을 허용한다.
+        http:
+          endpoint: 0.0.0.0:4318
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/traces
+    wal:
+      path: /tmp/tempo/wal

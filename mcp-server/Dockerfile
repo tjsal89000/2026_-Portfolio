@@ -1,0 +1,15 @@
+FROM node:20-slim AS build
+WORKDIR /build
+COPY package.json package-lock.json* ./
+RUN npm install
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:20-slim
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev
+COPY --from=build /build/dist ./dist
+EXPOSE 8090
+CMD ["node", "dist/index.js"]

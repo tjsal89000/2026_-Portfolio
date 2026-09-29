@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: aiops
+data:
+  default.conf: |
+    # 로컬 개발용 observability/nginx.conf와 같은 역할 - 모든 서비스를 하나의 진입점으로 묶는다.
+    # 차이점: host.docker.internal(호스트 프로세스) 대신 k8s Service DNS 이름으로 접근하고,
+    # n8n은 로컬처럼 "호스트의 고정 포트"로 리다이렉트할 수 없으므로(클러스터 밖에서는 Service
+    # DNS를 못 씀) NodePort로 노출해두고 $host(요청의 Host 헤더)를 그대로 재사용해 리다이렉트한다 -
+    # 그래야 로컬 포트포워딩이든 실제 노드 공인 IP든 환경에 상관없이 올바른 주소로 리다이렉트됨.
+    server {
+        listen 80;
+
+        location = / {
+            return 302 /dashboard/;
+        }
+
+        location /dashboard/ {
+            proxy_pass http://dashboard:80;
+            proxy_set_header Host $host;
+        }
+
+        location /grafana/ {
+            proxy_pass http://grafana:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Host $host;
+        }
+
+        location /n8n/ {
+            return 302 http://$host:30678/;
+        }
+
+        location /prometheus/ {
+            proxy_pass http://prometheus:9090/prometheus/;
+            proxy_set_header Host $host;
+        }
+
+        location /api/ {
+            proxy_pass http://gateway:8095;
+            proxy_set_header Host $host;
+        }
+
+        location /alerts/ {
+            proxy_pass http://anomaly-detector:8091/;
+            proxy_set_header Host $host;
+        }
+
+        location /report/ {
+            proxy_pass http://report-agent:8092/;
+            proxy_set_header Host $host;
+        }
+
+        location /ws-server/ {
+            proxy_pass http://ws-server:8096/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: nginx }
+  template:
+    metadata:
+      labels: { app: nginx }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: config
+          configMap:
+            name: nginx-config
+---
+# 클러스터 밖에서 접근하는 단일 진입점 - 로컬의 "http://localhost"에 해당.
+# 실제 배포(Phase 12, Terraform)에서는 EC2의 공인 IP:30080으로 접근하게 된다.
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: aiops
+spec:
+  type: NodePort
+  selector: { app: nginx }
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+---
+# n8n은 서브패스 프록시가 안 되는 알려진 이슈가 있어(로컬과 동일한 이유) 자기 포트로 직접
+# 접근하게 한다 - 로컬에서 5678 포트로 직접 접근했던 것의 k8s NodePort 버전.
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n-external
+  namespace: aiops
+spec:
+  type: NodePort
+  selector: { app: n8n }
+  ports:
+    - port: 5678
+      targetPort: 5678
+      nodePort: 30678

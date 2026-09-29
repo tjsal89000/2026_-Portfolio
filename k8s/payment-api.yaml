@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: payment-api }
+  template:
+    metadata:
+      labels: { app: payment-api }
+    spec:
+      containers:
+        - name: payment-api
+          # 로컬에서 빌드한 이미지를 레지스트리 없이 클러스터에 직접 임포트해 쓰는 걸 전제로
+          # imagePullPolicy: Never로 둔다 (k3d/minikube 등 로컬 클러스터에서 흔한 패턴).
+          # 실제 배포(Phase 12)에서는 이미지를 레지스트리에 푸시하고 태그/정책을 바꾼다.
+          image: aiops/payment-api:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka:9092"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://tempo:4318/v1/traces"
+          resources:
+            requests: { cpu: "250m", memory: "384Mi" }
+            limits: { cpu: "1", memory: "768Mi" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-api
+  namespace: aiops
+spec:
+  selector: { app: payment-api }
+  ports:
+    - port: 8080
+      targetPort: 8080

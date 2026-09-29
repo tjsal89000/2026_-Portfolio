@@ -1,0 +1,308 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: aiops
+data:
+  prometheus.yml: |
+    # k8s에서는 payment-api/db-writer-consumer도 각자 Service DNS로 접근 가능한 Pod라서,
+    # 로컬 개발 때 필요했던 host.docker.internal 우회가 필요 없다 - Service 이름으로 바로 스크랩.
+    global:
+      scrape_interval: 5s
+
+    scrape_configs:
+      - job_name: payment-api
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets: ["payment-api:8080"]
+
+      - job_name: db-writer-consumer
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets: ["db-writer-consumer:8081"]
+
+      - job_name: kafka-exporter
+        static_configs:
+          - targets: ["kafka-exporter:9308"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prometheus }
+  template:
+    metadata:
+      labels: { app: prometheus }
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:latest
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --web.route-prefix=/prometheus/
+            - --web.external-url=http://localhost/prometheus/
+          ports:
+            - containerPort: 9090
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: aiops
+spec:
+  selector: { app: prometheus }
+  ports:
+    - port: 9090
+      targetPort: 9090
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-config
+  namespace: aiops
+data:
+  tempo.yaml: |
+    server:
+      http_listen_port: 3200
+
+    distributor:
+      receivers:
+        otlp:
+          protocols:
+            http:
+              endpoint: 0.0.0.0:4318
+            grpc:
+              endpoint: 0.0.0.0:4317
+
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /tmp/tempo/traces
+        wal:
+          path: /tmp/tempo/wal
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tempo
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: tempo }
+  template:
+    metadata:
+      labels: { app: tempo }
+    spec:
+      containers:
+        - name: tempo
+          image: grafana/tempo:latest
+          args: ["-config.file=/etc/tempo.yaml"]
+          ports:
+            - containerPort: 3200
+            - containerPort: 4318
+            - containerPort: 4317
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tempo.yaml
+              subPath: tempo.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: tempo-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  namespace: aiops
+spec:
+  selector: { app: tempo }
+  ports:
+    - name: api
+      port: 3200
+      targetPort: 3200
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: aiops
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090/prometheus/
+        isDefault: true
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo:3200
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: payment-aiops-platform
+        folder: ""
+        type: file
+        options:
+          path: /etc/grafana/provisioning/dashboards/json
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-json
+  namespace: aiops
+data:
+  payment-platform.json: |
+    {
+      "title": "Payment AIOps Platform",
+      "uid": "payment-aiops-platform",
+      "timezone": "browser",
+      "refresh": "10s",
+      "time": { "from": "now-15m", "to": "now" },
+      "panels": [
+        {
+          "id": 1, "title": "서비스 상태 (payment-api / db-writer-consumer)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            { "expr": "up{job=~\"payment-api|db-writer-consumer\"}", "legendFormat": "{{job}}" }
+          ]
+        },
+        {
+          "id": 2, "title": "결제 API 요청 처리량 (초당)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [
+            { "expr": "sum(rate(http_server_requests_seconds_count{job=\"payment-api\",uri=\"/payments\"}[1m])) by (status)", "legendFormat": "status {{status}}" }
+          ]
+        },
+        {
+          "id": 3, "title": "결제 API 응답 지연시간 (p95)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"payment-api\",uri=\"/payments\"}[1m])) by (le))", "legendFormat": "p95" }
+          ]
+        },
+        {
+          "id": 4, "title": "Kafka Consumer Lag (db-writer-consumer-group)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            { "expr": "kafka_consumergroup_lag{consumergroup=\"db-writer-consumer-group\"}", "legendFormat": "partition {{partition}}" }
+          ]
+        },
+        {
+          "id": 5, "title": "db-writer-consumer Kafka 메시지 처리 건수/소요시간",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "targets": [
+            { "expr": "rate(spring_kafka_listener_seconds_count{job=\"db-writer-consumer\"}[1m])", "legendFormat": "처리 건수/초" },
+            { "expr": "spring_kafka_listener_seconds_sum{job=\"db-writer-consumer\"} / spring_kafka_listener_seconds_count{job=\"db-writer-consumer\"}", "legendFormat": "평균 처리시간(초)" }
+          ]
+        },
+        {
+          "id": 6, "title": "JVM 힙 메모리 사용량",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+          "targets": [
+            { "expr": "sum(jvm_memory_used_bytes{area=\"heap\",job=~\"payment-api|db-writer-consumer\"}) by (job)", "legendFormat": "{{job}}" }
+          ]
+        },
+        {
+          "id": 7, "title": "분산 트레이싱 (Tempo)",
+          "type": "text",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+          "options": {
+            "content": "왼쪽 메뉴 Explore에서 데이터소스를 Tempo로 바꾸고 TraceQL로 조회:\n\n`{resource.service.name=\"payment-api\"}`\n\n결제 API 요청 하나가 Kafka 발행을 거쳐 db-writer-consumer까지 이어지는 trace를 확인할 수 있음",
+            "mode": "markdown"
+          }
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: aiops
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grafana }
+  template:
+    metadata:
+      labels: { app: grafana }
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Admin"
+            - name: GF_SERVER_ROOT_URL
+              value: "http://localhost/grafana/"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: dashboard-json
+              mountPath: /etc/grafana/provisioning/dashboards/json
+      volumes:
+        - name: provisioning
+          configMap:
+            name: grafana-provisioning
+        - name: dashboard-json
+          configMap:
+            name: grafana-dashboard-json
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: aiops
+spec:
+  selector: { app: grafana }
+  ports:
+    - port: 3000
+      targetPort: 3000
