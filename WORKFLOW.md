@@ -255,10 +255,13 @@ Phase 2(DB Writer)·Phase 3(Kafka+Redis) 뒤에 놓은 이유: 쿼리할 실제 
 - [x] k3s 매니페스트(Deployment/Service) 작성 - `k8s/` 폴더. 인프라(postgres/redis/kafka+exporter/prometheus/tempo/grafana/nginx/n8n)와 앱 9종 전부 작성. n8n은 로컬과 동일한 이유(서브패스 프록시 이슈)로 NodePort로 직접 노출, nginx의 `/n8n/` 위치는 `$host`(요청 Host 헤더)를 재사용한 리다이렉트로 환경에 상관없이 동작하게 함. GOOGLE_API_KEY는 YAML에 값을 적지 않고 `kubectl create secret`으로 별도 생성하도록 문서화(비밀값을 파일에 남기지 않는 이 프로젝트의 원칙 유지)
 - **알려진 제약(Phase 12로 이월)**: 대시보드 프론트엔드에 빌드 시점 하드코딩된 `http://localhost` 주소들은 실제 EC2 공인 IP/도메인 환경에서 깨짐 - Phase 12에서 빌드 시점 주입 또는 런타임 설정 스크립트로 해결 예정
 
-### Phase 12 — 인프라 (Terraform)
-- [ ] EC2 인스턴스 + 보안그룹 + (필요 시) Elastic IP
-- [ ] `user_data` 스크립트로 Docker 설치 → k3s 설치 → 이미지 pull/배포까지 자동화
-- [ ] `terraform apply` 한 번으로 "바로 접속 가능한 웹 대시보드"가 뜨는 게 목표
+### Phase 12 — 인프라 (Terraform) ✅ 완료
+- [x] EC2 인스턴스(t3.large, Ubuntu 22.04) + 보안그룹(SSH/nginx NodePort 30080/n8n NodePort 30678). SSH 키페어도 `tls_private_key`+`aws_key_pair`로 Terraform이 직접 생성해 사전 수작업(콘솔에서 키페어 만들기)을 없앰. 기본 VPC 사용(ADR-3과 같은 논리 - 이 규모에서 커스텀 VPC는 이점이 없음)
+- [x] `user_data` 스크립트로 Docker 설치 → k3s 설치(`--docker` 플래그로 Docker를 컨테이너 런타임으로 써서 이미지 export/import 단계 생략) → GitHub 저장소 clone → 9개 컴포넌트 이미지 빌드 → `k8s/` 매니페스트 적용까지 자동화
+- [x] `terraform apply` 한 번으로 배포 완료, 실제 브라우저 접속 가능한 웹 대시보드까지 확인 (`http://<EC2 공인IP>:30080/dashboard/` 200 응답)
+- [x] GitHub 저장소(`github.com/tjsal89000/2026_-Portfolio`, public) 신규 생성 - 이 프로젝트가 git 저장소가 아니었어서 Phase 12를 시작하기 전에 git 자체를 설치하고 초기화. `Terraform-admin_accessKeys.csv`(AWS 키) 등이 있는 상위 폴더 전체가 아니라 `payment-aiops-platform/` 폴더만 별도로 저장소 루트로 잡아서 실수로 민감 파일이 딸려가는 걸 방지
+- [x] GOOGLE_API_KEY는 Terraform 코드/state/user_data 어디에도 값을 넣지 않고, 배포 후 SSH 접속 상태에서 `kubectl create secret`으로 직접 주입하도록 설계 (비밀값은 파일에 남기지 않는다는 이 프로젝트의 일관된 원칙)
+- 실제로 겪은 문제: [문제해결_로그.md](./docs/문제해결_로그.md) [6]번 (네임스페이스 적용 순서 버그, CPU 리소스 요청 총합이 노드 용량과 정확히 일치해 생긴 스케줄링 교착)
 
 ### Phase 13 — 통합 테스트 + 문서화
 - [ ] 전체 흐름 End-to-End 확인
