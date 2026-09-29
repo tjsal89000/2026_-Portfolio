@@ -1,0 +1,99 @@
+# SSH 키페어를 미리 만들어와야 하는 수동 단계를 없애려고, Terraform이 직접 RSA 키를 생성해서
+# AWS에 등록하고 개인키는 로컬 파일로 저장한다. "terraform apply 한 번으로 끝" 이라는 Phase 12
+# 목표에 맞춰, "먼저 AWS 콘솔에서 키페어 만들고..." 같은 선행 수작업을 없앤 것.
+resource "tls_private_key" "ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "this" {
+  key_name   = "aiops-platform-key"
+  public_key = tls_private_key.ssh.public_key_openssh
+}
+
+resource "local_file" "private_key" {
+  content         = tls_private_key.ssh.private_key_pem
+  filename        = "${path.module}/generated_key.pem"
+  file_permission = "0600"
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+# 이 프로젝트 규모(단일 인스턴스 데모)에서는 커스텀 VPC를 새로 만들 이점이 없어서
+# 기본 VPC를 그대로 쓴다 - Strimzi Operator 대신 플레인 Kafka 컨테이너를 선택했던 것과
+# 같은 논리(ADR-3): 오퍼레이터/커스텀 네트워크는 "그 복잡도를 감당할 규모"일 때 가치가 있다.
+resource "aws_security_group" "this" {
+  name        = "aiops-platform-sg"
+  description = "payment-aiops-platform EC2 security group"
+  vpc_id      = data.aws_vpc.default.id
+
+  # AWS 보안그룹 description은 ASCII만 허용해서(한글 불가) 영어로 적고, 맥락은 주석으로 남긴다.
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.allowed_ssh_cidr]
+  }
+
+  # nginx 게이트웨이 (모든 서비스의 단일 진입점) - k8s Service가 NodePort 30080으로 노출
+  ingress {
+    description = "web dashboard / gateway (nginx NodePort)"
+    from_port   = 30080
+    to_port     = 30080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # n8n - 서브패스 프록시 이슈로 로컬과 동일하게 자기 포트로 직접 노출 (NodePort)
+  ingress {
+    description = "n8n (NodePort)"
+    from_port   = 30678
+    to_port     = 30678
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "app" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  key_name               = aws_key_pair.this.key_name
+  vpc_security_group_ids = [aws_security_group.this.id]
+
+  root_block_device {
+    volume_size = 30 # Docker 이미지 9개 + Kafka/Postgres 데이터까지 담아야 해서 기본 8GB보다 넉넉하게
+    volume_type = "gp3"
+  }
+
+  user_data = templatefile("${path.module}/user_data.sh.tpl", {
+    github_repo_url = var.github_repo_url
+  })
+
+  tags = {
+    Name = "aiops-platform"
+  }
+}

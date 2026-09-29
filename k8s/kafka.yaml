@@ -81,7 +81,7 @@ spec:
           ports:
             - containerPort: 9308
           resources:
-            requests: { cpu: "50m", memory: "64Mi" }
+            requests: { cpu: "25m", memory: "64Mi" }
             limits: { cpu: "200m", memory: "128Mi" }
 ---
 apiVersion: v1

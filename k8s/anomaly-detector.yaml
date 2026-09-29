@@ -27,7 +27,7 @@ spec:
             - name: N8N_WEBHOOK_URL
               value: "http://n8n:5678/webhook/payment-anomaly"
           resources:
-            requests: { cpu: "100m", memory: "128Mi" }
+            requests: { cpu: "50m", memory: "128Mi" }
             limits: { cpu: "500m", memory: "256Mi" }
 ---
 apiVersion: v1
