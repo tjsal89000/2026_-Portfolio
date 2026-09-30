@@ -1,6 +1,6 @@
 import { Box, Chip, Paper, Tooltip, Toolbar, Typography } from "@mui/material";
 import { TOPOLOGY, type Tech } from "../data/infraTopology";
-import MermaidDiagram from "../components/MermaidDiagram";
+import FlowDiagram, { type FlowEdge, type FlowNode } from "../components/FlowDiagram";
 
 const TECH_COLOR: Record<Tech, "warning" | "info" | "success" | "default"> = {
   Java: "warning",
@@ -9,38 +9,6 @@ const TECH_COLOR: Record<Tech, "warning" | "info" | "success" | "default"> = {
   Infra: "default",
 };
 
-// README.md "## 아키텍처"의 mermaid 다이어그램과 같은 관계를 담고 있지만, 노드 16개를 한
-// 다이어그램에 다 넣으면(특히 MCP가 3곳에서 읽어 2곳으로 내보내는 허브라) 자동 배치가
-// 복잡해지므로 "결제가 실제로 처리되는 흐름"과 "그 결과를 조회/분석하는 흐름" 두 개로
-// 쪼갰다. 이중 소스라 README를 바꾸면 여기도 같이 갱신해야 함 - phases.ts/testSuites.ts와
-// 같은 이유로 자동 동기화하지 않음(자주 안 바뀌는 정의라 사람이 한 번 갱신하는 게 더 단순함).
-//
-// 카테고리별 색은 아래 "전체 컨테이너 목록" 섹션의 배지 색과 맞춘다: Java=주황, TS=파랑,
-// Python=초록, 외부/인프라=보라. classDef에 색을 직접 박아두면 라이트/다크 모드 어느
-// 배경에서도(옅은 채움 + 진한 글자) 항상 또렷하게 읽히므로, 모드별로 다시 계산할 필요가 없다.
-const CLASS_DEFS = `
-    classDef java fill:#FFF3E0,stroke:#EF6C00,color:#E65100
-    classDef ts fill:#E3F2FD,stroke:#1565C0,color:#0D47A1
-    classDef python fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20
-    classDef ext fill:#F3E5F5,stroke:#7B1FA2,color:#4A148C`;
-
-const PAYMENT_FLOW_DEFINITION = `flowchart TD
-    TG["트래픽 생성 에이전트"] -->|"POST /api/payments"| GW["API 게이트웨이"]
-    GW --> API["결제 API"]
-    API -->|publish| KAFKA[("Kafka")]
-    KAFKA --> DBW["DB Writer Consumer"]
-    DBW --> DB[("PostgreSQL")]
-    DBW --> REDIS[("Redis")]
-    KAFKA --> AD["이상탐지 에이전트"]
-    REDIS --> AD
-    AD -->|webhook| N8N["n8n"]
-    N8N --> SLACK["Slack"]
-${CLASS_DEFS}
-    class TG,AD python
-    class GW,DBW ts
-    class API java
-    class KAFKA,DB,REDIS,N8N,SLACK ext`;
-
 const LEGEND = [
   { label: "Java", fill: "#FFF3E0", text: "#E65100" },
   { label: "TypeScript", fill: "#E3F2FD", text: "#0D47A1" },
@@ -48,20 +16,81 @@ const LEGEND = [
   { label: "인프라 / 외부 연동", fill: "#F3E5F5", text: "#4A148C" },
 ];
 
-const ANALYTICS_FLOW_DEFINITION = `flowchart LR
-    KAFKA[("Kafka")] -.도구.-> MCP["MCP 서버"]
-    REDIS[("Redis")] -.도구.-> MCP
-    DB[("PostgreSQL")] -.도구.-> MCP
-    MCP -.tool calling.-> RPT["AI 리포트 에이전트"]
-    N8N["n8n"] -->|스케줄 트리거| RPT
-    RPT -->|저장| DB
-    REDIS -->|Pub/Sub| WS["WebSocket 서버"]
-    WS --> WEB["웹 대시보드"]
-    MCP -.조회.-> WEB
-${CLASS_DEFS}
-    class RPT python
-    class MCP,WS,WEB ts
-    class KAFKA,REDIS,DB,N8N ext`;
+// README.md "## 아키텍처"의 mermaid 다이어그램과 같은 관계를 담고 있지만, 좌표를 전부 직접
+// 계산해서 겹치거나 꼬이는 선이 없게 짰다 - "결제가 실제로 처리되는 흐름"과 "그 결과를
+// 조회/분석하는 흐름" 두 개로 쪼갠 것도 mermaid 시절과 같은 이유(허브 노드가 많으면 한
+// 그림에 다 넣기엔 복잡함). 이중 소스라 README를 바꾸면 여기도 같이 갱신해야 함 -
+// phases.ts/testSuites.ts와 같은 이유로 자동 동기화하지 않음.
+//
+// 격자 규칙: 같은 행(row)에 있으면 가로선, 같은 열(col)에 있으면 세로선만 쓰고, 그마저도
+// 안 되는 경우(허브로 모이는 화살표)만 옆 열 사이 빈 공간을 거쳐가는 꺾은선을 쓴다 -
+// 이렇게 하면 두 화살표가 서로를 가로지를 일이 없다는 걸 좌표만 보고 확인할 수 있다.
+const PAYMENT_NODES: FlowNode[] = [
+  { id: "TG", label: "트래픽 생성\n에이전트", category: "python", col: 0, row: 0 },
+  { id: "GW", label: "API 게이트웨이", category: "ts", col: 0, row: 1 },
+  { id: "API", label: "결제 API", category: "java", col: 0, row: 2 },
+  { id: "KAFKA", label: "Kafka", category: "ext", col: 0, row: 3 },
+  { id: "DBW", label: "DB Writer\nConsumer", category: "java", col: 0, row: 4 },
+  { id: "DB", label: "PostgreSQL", category: "ext", col: 0, row: 5 },
+  { id: "AD", label: "이상탐지\n에이전트", category: "python", col: 1, row: 3 },
+  { id: "REDIS", label: "Redis", category: "ext", col: 1, row: 4 },
+  { id: "N8N", label: "n8n", category: "ext", col: 2, row: 3 },
+  { id: "SLACK", label: "Slack", category: "ext", col: 2, row: 4 },
+];
+
+const PAYMENT_EDGES: FlowEdge[] = [
+  { from: "TG", to: "GW", label: "POST /api/payments" },
+  { from: "GW", to: "API" },
+  { from: "API", to: "KAFKA", label: "publish" },
+  { from: "KAFKA", to: "DBW" },
+  { from: "DBW", to: "DB" },
+  { from: "KAFKA", to: "AD", label: "직접 구독" },
+  { from: "DBW", to: "REDIS", label: "카운터 갱신" },
+  { from: "REDIS", to: "AD", label: "임계치 조회" },
+  { from: "AD", to: "N8N", label: "webhook" },
+  { from: "N8N", to: "SLACK" },
+];
+
+const ANALYTICS_NODES: FlowNode[] = [
+  { id: "KAFKA", label: "Kafka", category: "ext", col: 0, row: 0 },
+  { id: "N8N", label: "n8n", category: "ext", col: 1, row: 0 },
+  { id: "RPT", label: "AI 리포트\n에이전트", category: "python", col: 2, row: 0 },
+  { id: "REDIS", label: "Redis", category: "ext", col: 0, row: 1 },
+  { id: "MCP", label: "MCP 서버", category: "ts", col: 1, row: 1 },
+  { id: "DB", label: "PostgreSQL", category: "ext", col: 0, row: 2 },
+  { id: "WS", label: "WebSocket\n서버", category: "ts", col: 1, row: 2 },
+  { id: "WEB", label: "웹 대시보드", category: "ts", col: 2, row: 2 },
+];
+
+// MCP로 모이는 입력 3개/나가는 출력 2개는 전부 같은 변에서 만나므로, 겹치지 않게
+// toOffset/fromOffset으로 진입 높이를 살짝씩 벌려준다.
+const ANALYTICS_EDGES: FlowEdge[] = [
+  { from: "KAFKA", to: "MCP", label: "도구", dashed: true, toOffset: -12 },
+  { from: "REDIS", to: "MCP", label: "도구", dashed: true },
+  { from: "DB", to: "MCP", label: "도구", dashed: true, toOffset: 12 },
+  { from: "MCP", to: "RPT", label: "tool calling", dashed: true, fromOffset: -10 },
+  { from: "N8N", to: "RPT", label: "스케줄 트리거" },
+  { from: "REDIS", to: "WS", label: "Pub/Sub" },
+  { from: "WS", to: "WEB" },
+  { from: "MCP", to: "WEB", label: "조회", dashed: true, fromOffset: 10 },
+  {
+    // 리포트 저장(RPT -> DB)은 격자 규칙을 벗어나는 유일한 "되돌아가는" 화살표라, 아래
+    // 빈 공간(4번째 행)을 거쳐 우회하도록 경유점을 직접 지정 - 다른 선과 절대 안 겹침.
+    from: "RPT",
+    to: "DB",
+    label: "저장",
+    // FlowDiagram 기본값(nodeWidth 130 / colGap 70 / rowGap 34) 기준 좌표. RPT 바로 밑이
+    // WEB 박스라(둘 다 2열) 곧장 아래로 내려가면 WEB을 가로지르므로, RPT 오른쪽 바깥으로
+    // 나간 뒤 맨 아래 빈 공간을 거쳐 DB 바닥으로 들어가도록 완전히 우회시킴.
+    waypoints: [
+      { x: 530, y: 25 },
+      { x: 550, y: 25 },
+      { x: 550, y: 260 },
+      { x: 65, y: 260 },
+      { x: 65, y: 218 },
+    ],
+  },
+];
 
 export default function ArchitecturePage() {
   const totalCount = TOPOLOGY.reduce((sum, g) => sum + g.items.length, 0);
@@ -92,7 +121,7 @@ export default function ArchitecturePage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             결제 요청 하나가 접수돼 저장되고, 이상탐지까지 이어지는 실시간 경로.
           </Typography>
-          <MermaidDiagram definition={PAYMENT_FLOW_DEFINITION} />
+          <FlowDiagram nodes={PAYMENT_NODES} edges={PAYMENT_EDGES} />
         </Paper>
 
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
@@ -103,7 +132,7 @@ export default function ArchitecturePage() {
             쌓인 데이터를 MCP 서버가 도구로 노출하고, AI 리포트와 대시보드가 그걸 조회/구독하는
             경로 (점선 = 도구 호출·조회, 실선 = 이벤트/트리거).
           </Typography>
-          <MermaidDiagram definition={ANALYTICS_FLOW_DEFINITION} />
+          <FlowDiagram nodes={ANALYTICS_NODES} edges={ANALYTICS_EDGES} />
         </Paper>
 
         <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 700 }}>
