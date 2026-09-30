@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Box, useTheme } from "@mui/material";
+import { useState } from "react";
+import { Box, Tooltip, useTheme } from "@mui/material";
 
 // mermaid(자동 배치 라이브러리)가 노드 16개짜리 그래프를 어떻게 그릴지 미리 볼 수 없어서
 // 실제로는 지저분하게 나왔다 - 그 대신 진행 상황 페이지의 PhaseFlow.tsx와 같은 방식으로,
@@ -12,6 +12,9 @@ export interface FlowNode {
   category: FlowCategory;
   col: number;
   row: number;
+  // 호버 시 보여줄 설명 - 이 컴포넌트 하나가 여러 노드를 그리는 목적 없이 순수 렌더러 역할만
+  // 하도록, "무슨 역할이고 왜 이 기술을 썼는지"는 데이터로 여기 들어오게 한다.
+  tooltip?: string;
 }
 
 export interface FlowEdge {
@@ -34,7 +37,6 @@ interface FlowDiagramProps {
   nodeHeight?: number;
   colGap?: number;
   rowGap?: number;
-  height?: number;
 }
 
 const CATEGORY_COLOR: Record<FlowCategory, { fill: string; stroke: string; text: string }> = {
@@ -44,53 +46,28 @@ const CATEGORY_COLOR: Record<FlowCategory, { fill: string; stroke: string; text:
   ext: { fill: "#F3E5F5", stroke: "#7B1FA2", text: "#4A148C" },
 };
 
-export default function FlowDiagram({
-  nodes,
-  edges,
-  nodeWidth = 130,
-  nodeHeight = 50,
-  colGap = 70,
-  rowGap = 34,
-  height = 360,
-}: FlowDiagramProps) {
+export default function FlowDiagram({ nodes, edges, nodeWidth = 130, nodeHeight = 50, colGap = 70, rowGap = 34 }: FlowDiagramProps) {
   const theme = useTheme();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(640);
-
-  // TrafficSparkline과 같은 이유 - viewBox 너비를 실제 렌더 폭에 정확히 맞춰서, 좁은
-  // 화면(모바일)에서도 SVG가 레터박싱되지 않고 컨테이너를 꽉 채우게 한다.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w) setWidth(w);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const colX = (col: number) => col * (nodeWidth + colGap);
   const rowY = (row: number) => row * (nodeHeight + rowGap);
-  // 노드뿐 아니라 우회 경로(waypoints)의 x좌표도 포함해야 한다 - RPT->DB처럼 노드 오른쪽
-  // 바깥으로 나갔다 들어오는 화살표가 있으면 그 지점이 가장 오른쪽 끝일 수 있다.
+  // 노드 + 우회 경로(waypoints) 좌표를 전부 포함해서 실제 내용물 크기를 구한다. 렌더 폭에
+  // 맞춰 viewBox를 늘리지 않는 게 핵심 - 그렇게 하면 컨테이너가 내용보다 넓을 때 우측에
+  // 빈 캔버스만 남는데(전에 그랬음), 대신 내용 크기 그대로 viewBox를 잡고 SVG가 컨테이너
+  // 폭에 맞춰 통째로 확대되게(preserveAspectRatio 기본값) 두면 빈 공간 없이 꽉 찬다.
   const contentWidth = Math.max(
     ...nodes.map((n) => colX(n.col) + nodeWidth),
     ...edges.flatMap((e) => e.waypoints?.map((p) => p.x) ?? []),
   );
-  // 노드뿐 아니라 우회 경로(waypoints)의 y좌표도 포함해야, RPT->DB처럼 빈 공간을 거쳐가는
-  // 화살표가 SVG 바깥으로 잘려나가지 않는다. height prop은 이 값의 하한선으로만 쓴다.
   const contentHeight = Math.max(
-    height,
-    ...nodes.map((n) => rowY(n.row) + nodeHeight + 20),
-    ...edges.flatMap((e) => e.waypoints?.map((p) => p.y + 20) ?? []),
+    ...nodes.map((n) => rowY(n.row) + nodeHeight),
+    ...edges.flatMap((e) => e.waypoints?.map((p) => p.y) ?? []),
   );
 
   // 경로를 문자열이 아니라 점(point) 배열로 만들어서, "d" 속성(전체를 잇는 선)과 라벨
-  // 위치(중간 세그먼트의 중점) 둘 다 같은 좌표에서 정확히 계산되게 한다 - 이전엔 완성된
-  // path 문자열에서 숫자를 정규식으로 다시 뽑아 썼더니, 직선(점 2개)의 경우 "중간"이 아니라
-  // 끝점에 라벨이 붙는 버그가 있었다.
+  // 위치(중간 세그먼트의 중점) 둘 다 같은 좌표에서 정확히 계산되게 한다.
   function edgePoints(edge: FlowEdge): { x: number; y: number }[] {
     if (edge.waypoints) return edge.waypoints;
     const from = byId.get(edge.from)!;
@@ -148,12 +125,11 @@ export default function FlowDiagram({
   }
 
   return (
-    <Box ref={containerRef} sx={{ width: "100%", overflowX: "auto" }}>
+    <Box sx={{ width: "100%", overflowX: "auto" }}>
       <svg
-        viewBox={`-10 -10 ${Math.max(width, contentWidth) + 20} ${contentHeight}`}
+        viewBox={`-10 -10 ${contentWidth + 20} ${contentHeight + 20}`}
         width="100%"
-        height={contentHeight}
-        style={{ display: "block" }}
+        style={{ display: "block", minWidth: 480 }}
       >
         <defs>
           <marker id="flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -165,17 +141,18 @@ export default function FlowDiagram({
           const points = edgePoints(edge);
           const d = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
           const label = labelPosition(points);
+          const highlighted = hoveredId === edge.from || hoveredId === edge.to;
 
           return (
             <g key={`${edge.from}-${edge.to}-${i}`}>
               <path
                 d={d}
-                stroke={theme.palette.text.secondary}
-                strokeWidth={1.5}
+                stroke={highlighted ? theme.palette.primary.main : theme.palette.text.secondary}
+                strokeWidth={highlighted ? 2 : 1.5}
                 strokeDasharray={edge.dashed ? "5 4" : undefined}
                 fill="none"
                 markerEnd="url(#flow-arrow)"
-                opacity={0.75}
+                opacity={highlighted ? 1 : 0.75}
               />
               {edge.label && (
                 <text
@@ -198,15 +175,20 @@ export default function FlowDiagram({
           const x = colX(node.col);
           const y = rowY(node.row);
           const lines = node.label.split("\n");
-          return (
-            <g key={node.id} transform={`translate(${x}, ${y})`}>
+          const nodeEl = (
+            <g
+              transform={`translate(${x}, ${y})`}
+              onMouseEnter={() => setHoveredId(node.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              style={{ cursor: node.tooltip ? "help" : "default" }}
+            >
               <rect
                 width={nodeWidth}
                 height={nodeHeight}
                 rx={8}
                 fill={colors.fill}
-                stroke={colors.stroke}
-                strokeWidth={1.5}
+                stroke={hoveredId === node.id ? theme.palette.primary.main : colors.stroke}
+                strokeWidth={hoveredId === node.id ? 2.5 : 1.5}
               />
               {lines.map((line, i) => (
                 <text
@@ -222,6 +204,14 @@ export default function FlowDiagram({
                 </text>
               ))}
             </g>
+          );
+
+          return node.tooltip ? (
+            <Tooltip key={node.id} title={node.tooltip} arrow placement="top">
+              {nodeEl}
+            </Tooltip>
+          ) : (
+            <g key={node.id}>{nodeEl}</g>
           );
         })}
       </svg>
