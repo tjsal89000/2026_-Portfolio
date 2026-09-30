@@ -1,0 +1,117 @@
+name: CI
+
+# 브랜치가 이거 하나(main)뿐이라 push 시점에 바로 검증하고, 나중에 PR을 쓰게 되면
+# 그때도 그대로 걸리도록 pull_request도 같이 걸어둔다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # payment-api는 Kafka 클라이언트가 지연 연결(lazy connect) 방식이라 브로커가 없어도
+  # @SpringBootTest 컨텍스트가 뜬다 - 그래서 별도 서비스 컨테이너 없이 바로 테스트 가능.
+  java-payment-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: payment-api/pom.xml
+      - working-directory: payment-api
+        run: sh ./mvnw test
+
+  # db-writer-consumer는 JPA(HikariCP)가 컨텍스트 기동 시점에 실제로 DB 커넥션을 맺으려고 해서
+  # (application.yml의 localhost:5432, aiops/aiops123/aiops_db와 동일하게 맞춤) Postgres
+  # 서비스 컨테이너가 없으면 @SpringBootTest 자체가 기동 실패한다. Redis도 마찬가지로 맞춰둠.
+  # Kafka는 리스너 컨테이너가 컨텍스트 기동 후 백그라운드로 붙는 방식이라(SmartLifecycle) 생략.
+  java-db-writer-consumer:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aiops
+          POSTGRES_PASSWORD: aiops123
+          POSTGRES_DB: aiops_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aiops"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: db-writer-consumer/pom.xml
+      - working-directory: db-writer-consumer
+        run: sh ./mvnw test
+
+  # gateway/mcp-server/ws-server는 테스트에서 fetch/ioredis/kafkajs/pg/AWS SDK를 전부 목킹해뒀으므로
+  # (vi.mock) 실제 인프라 없이 순수하게 돈다 - 그래서 셋 다 서비스 컨테이너가 필요 없음.
+  typescript-services:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [gateway, mcp-server, ws-server]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+      - working-directory: ${{ matrix.service }}
+        run: npm ci
+      - working-directory: ${{ matrix.service }}
+        run: npm test
+
+  dashboard-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - working-directory: dashboard
+        run: npm ci
+      - working-directory: dashboard
+        run: npx tsc -b --noEmit
+
+  # 세 에이전트 모두 모듈을 import하는 시점에는 실제 Redis/Kafka/Postgres에 연결하지 않도록
+  # 짜여 있어서(연결은 항상 함수 호출 시점에 lazy하게 일어남) 여기도 서비스 컨테이너가 필요 없다.
+  python-agents:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [anomaly-detector, traffic-generator, report-agent]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: agents/${{ matrix.service }}/requirements-dev.txt
+      - working-directory: agents/${{ matrix.service }}
+        run: pip install -r requirements-dev.txt
+      - working-directory: agents/${{ matrix.service }}
+        run: pytest
