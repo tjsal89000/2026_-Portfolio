@@ -10,14 +10,6 @@ export interface Improvement {
 
 export const IMPROVEMENTS: Improvement[] = [
   {
-    title: "테스트 코드 - Java/TS는 있고 Python 3개는 없음",
-    description:
-      "payment-api·db-writer-consumer(Java), gateway·mcp-server·ws-server(TS, vitest)는 핵심 로직 단위 " +
-      "테스트를 갖춤(총 26건). 트래픽 생성/이상탐지/AI 리포트 3개 Python 에이전트는 아직 없음 - 다음 우선순위. " +
-      "'테스트 코드' 메뉴에서 실제 코드를 바로 볼 수 있음.",
-    priority: "high",
-  },
-  {
     title: "DB 비밀번호가 k8s 매니페스트에 평문으로 있음",
     description:
       "GOOGLE_API_KEY는 Secret으로 분리했지만 Postgres 계정/비밀번호는 k8s/*.yaml에 그대로 커밋돼 있음 " +
@@ -34,8 +26,9 @@ export const IMPROVEMENTS: Improvement[] = [
   {
     title: "CI/CD 파이프라인 없음",
     description:
-      "GitHub Actions 등으로 push 시 빌드/테스트가 자동으로 도는 흐름이 없음. " +
-      "테스트 코드가 먼저 생기면 자연스럽게 이어서 붙일 수 있는 항목.",
-    priority: "medium",
+      "Java 2개·TS 3개·Python 3개 서비스 전부에 단위 테스트(총 48건, '테스트 코드' 메뉴 참고)는 " +
+      "갖췄지만, push할 때마다 로컬에서 mvn test/vitest run/pytest를 직접 돌려야 함 - GitHub " +
+      "Actions로 자동 실행되는 흐름이 아직 없어서 다음 우선순위로 올림.",
+    priority: "high",
   },
 ];

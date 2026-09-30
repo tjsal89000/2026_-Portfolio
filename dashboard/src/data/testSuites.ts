@@ -114,4 +114,57 @@ export const TEST_SUITES: TestSuite[] = [
       },
     ],
   },
+  {
+    service: "anomaly-detector",
+    language: "Python",
+    files: [
+      {
+        path: "agents/anomaly-detector/test_kafka_watcher.py",
+        testCount: 8,
+        summary:
+          "콘텐츠 기반 이상탐지의 두 판정 함수를 pytest로 직접 검증(Kafka 연결 없이 순수 함수 호출): " +
+          "반복요청 임계치/윈도우 밖 요청 제외, KR·CARD 쏠림은 정상으로 보고 그 외 국가/결제수단 " +
+          "쏠림만 잡는지.",
+      },
+      {
+        path: "agents/anomaly-detector/test_alerts.py",
+        testCount: 5,
+        summary:
+          "n8n 웹훅 발송 게이트 두 가지 검증(is_enabled/시간을 목킹): 알림 꺼짐이면 미발송, 같은 " +
+          "유형은 쿨다운(15초) 안에 재발송 안 함, 쿨다운 지나면 재발송, 웹훅 실패해도 예외가 " +
+          "밖으로 새지 않는지.",
+      },
+    ],
+  },
+  {
+    service: "traffic-generator",
+    language: "Python",
+    files: [
+      {
+        path: "agents/traffic-generator/test_main.py",
+        testCount: 4,
+        summary:
+          "정상 결제 페이로드 생성 함수 검증: 인자로 값을 주면 그대로 쓰고, 안 주면 정의된 범위/풀 " +
+          "안에서만 채우는지, idempotencyKey가 매번 다른 UUID인지.",
+      },
+    ],
+  },
+  {
+    service: "report-agent",
+    language: "Python",
+    files: [
+      {
+        path: "agents/report-agent/test_main.py",
+        testCount: 4,
+        summary:
+          "MCP 도구 스키마를 Gemini 함수 선언으로 바꾸는 변환 로직 검증: Gemini가 모르는 " +
+          "$schema/additionalProperties 키 제거, inputSchema·description 누락 시 기본값 처리.",
+      },
+      {
+        path: "agents/report-agent/test_db.py",
+        testCount: 1,
+        summary: "psycopg2.connect를 목킹해 리포트가 파라미터 바인딩으로 INSERT되고 커밋되는지 검증.",
+      },
+    ],
+  },
 ];
