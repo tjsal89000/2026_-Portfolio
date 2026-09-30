@@ -43,16 +43,29 @@ export function useLiveFeed() {
   // 테이블)에서 최근 내역을 가져와 초기값으로 채운다. 그 사이 WebSocket으로 이미 들어온
   // 항목이 있으면(둘 다 마운트 시 동시에 시작되는 별개의 effect라 순서를 보장 못 함)
   // idempotencyKey로 중복만 걸러내고 실시간 쪽을 우선한다.
+  //
+  // 리스트에 보여줄 개수(MAX_FEED_ITEMS=20)만큼만 가져오면 스파크라인의 60초 창을 채우기엔
+  // 턱없이 부족하다(TPS 5 기준 20건은 4초 분량) - 그래프용으로는 훨씬 넉넉히 가져와서
+  // 초당 버킷(bucketsRef)을 직접 채우고, 리스트 표시는 그중 최근 것만 자른다.
+  const SPARKLINE_HYDRATE_LIMIT = 500;
   useEffect(() => {
-    fetch(`${API_ORIGIN}/ws-server/payments/recent?limit=${MAX_FEED_ITEMS}`)
+    fetch(`${API_ORIGIN}/ws-server/payments/recent?limit=${SPARKLINE_HYDRATE_LIMIT}`)
       .then((res) => res.json())
       .then((json) => {
-        const seeded: FeedPaymentItem[] = (json.payments ?? []).map(
-          (p: PaymentEvent & { processedAt: string }) => ({
-            ...p,
-            receivedAt: new Date(p.processedAt).getTime(),
-          })
-        );
+        const rows: (PaymentEvent & { processedAt: string })[] = json.payments ?? [];
+        if (rows.length === 0) return;
+
+        const nowSecAtLoad = Math.floor(Date.now() / 1000);
+        const buckets = bucketsRef.current;
+        for (const row of rows) {
+          const second = Math.floor(new Date(row.processedAt).getTime() / 1000);
+          if (second < nowSecAtLoad - SPARKLINE_WINDOW_SECONDS) continue; // 그래프 창 밖이면 스킵
+          buckets.set(second, (buckets.get(second) ?? 0) + 1);
+        }
+
+        const seeded: FeedPaymentItem[] = rows
+          .slice(0, MAX_FEED_ITEMS)
+          .map((p) => ({ ...p, receivedAt: new Date(p.processedAt).getTime() }));
         setPayments((prev) => {
           const existingKeys = new Set(prev.map((p) => p.idempotencyKey));
           return [...prev, ...seeded.filter((p) => !existingKeys.has(p.idempotencyKey))].slice(
