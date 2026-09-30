@@ -9,34 +9,59 @@ const TECH_COLOR: Record<Tech, "warning" | "info" | "success" | "default"> = {
   Infra: "default",
 };
 
-// README.md "## 아키텍처"의 mermaid 다이어그램과 동일한 소스 - 결제 요청이 실제로
-// 어떤 컴포넌트를 거쳐 흐르는지(점선 화살표는 "직접 호출"이 아니라 도구/조회 관계).
-// 이중 소스라 README를 바꾸면 여기도 같이 갱신해야 함 - phases.ts/testSuites.ts와 같은 이유로
-// 자동 동기화하지 않음(자주 안 바뀌는 정의라 사람이 한 번 갱신하는 게 더 단순하고 정직함).
-const FLOW_DEFINITION = `flowchart TD
-    TG["트래픽 생성 에이전트<br/>(Python)"] -->|"POST /api/payments"| GW["API 게이트웨이 (TS)<br/>opossum 서킷브레이커"]
-    GW --> API["결제 API (Java)<br/>Kafka Producer"]
-    API -->|publish| KAFKA[("Kafka<br/>payment.events")]
-    KAFKA --> DBW["DB Writer Consumer (Java)<br/>멱등성 저장"]
+// README.md "## 아키텍처"의 mermaid 다이어그램과 같은 관계를 담고 있지만, 노드 16개를 한
+// 다이어그램에 다 넣으면(특히 MCP가 3곳에서 읽어 2곳으로 내보내는 허브라) 자동 배치가
+// 복잡해지므로 "결제가 실제로 처리되는 흐름"과 "그 결과를 조회/분석하는 흐름" 두 개로
+// 쪼갰다. 이중 소스라 README를 바꾸면 여기도 같이 갱신해야 함 - phases.ts/testSuites.ts와
+// 같은 이유로 자동 동기화하지 않음(자주 안 바뀌는 정의라 사람이 한 번 갱신하는 게 더 단순함).
+//
+// 카테고리별 색은 아래 "전체 컨테이너 목록" 섹션의 배지 색과 맞춘다: Java=주황, TS=파랑,
+// Python=초록, 외부/인프라=보라. classDef에 색을 직접 박아두면 라이트/다크 모드 어느
+// 배경에서도(옅은 채움 + 진한 글자) 항상 또렷하게 읽히므로, 모드별로 다시 계산할 필요가 없다.
+const CLASS_DEFS = `
+    classDef java fill:#FFF3E0,stroke:#EF6C00,color:#E65100
+    classDef ts fill:#E3F2FD,stroke:#1565C0,color:#0D47A1
+    classDef python fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20
+    classDef ext fill:#F3E5F5,stroke:#7B1FA2,color:#4A148C`;
+
+const PAYMENT_FLOW_DEFINITION = `flowchart TD
+    TG["트래픽 생성 에이전트"] -->|"POST /api/payments"| GW["API 게이트웨이"]
+    GW --> API["결제 API"]
+    API -->|publish| KAFKA[("Kafka")]
+    KAFKA --> DBW["DB Writer Consumer"]
     DBW --> DB[("PostgreSQL")]
-    DBW -->|"카운터 갱신 + Pub/Sub"| REDIS[("Redis")]
+    DBW --> REDIS[("Redis")]
+    KAFKA --> AD["이상탐지 에이전트"]
+    REDIS --> AD
+    AD -->|webhook| N8N["n8n"]
+    N8N --> SLACK["Slack"]
+${CLASS_DEFS}
+    class TG,AD python
+    class GW,DBW ts
+    class API java
+    class KAFKA,DB,REDIS,N8N,SLACK ext`;
 
-    KAFKA -->|직접 구독| AD["이상탐지 에이전트 (Python)"]
-    REDIS -->|임계치 조회| AD
-    AD -->|webhook| N8N["n8n"] --> SLACK["Slack"]
+const LEGEND = [
+  { label: "Java", fill: "#FFF3E0", text: "#E65100" },
+  { label: "TypeScript", fill: "#E3F2FD", text: "#0D47A1" },
+  { label: "Python", fill: "#E8F5E9", text: "#1B5E20" },
+  { label: "인프라 / 외부 연동", fill: "#F3E5F5", text: "#4A148C" },
+];
 
-    MCP["MCP 서버 (TS)<br/>Kafka/Redis/Postgres 조회 도구"]
-    KAFKA -.도구.-> MCP
-    REDIS -.도구.-> MCP
-    DB -.도구.-> MCP
-    MCP -.tool calling.-> RPT["AI 리포트 에이전트 (Python)<br/>Gemini"]
-    N8N -->|스케줄 트리거| RPT
+const ANALYTICS_FLOW_DEFINITION = `flowchart LR
+    KAFKA[("Kafka")] -.도구.-> MCP["MCP 서버"]
+    REDIS[("Redis")] -.도구.-> MCP
+    DB[("PostgreSQL")] -.도구.-> MCP
+    MCP -.tool calling.-> RPT["AI 리포트 에이전트"]
+    N8N["n8n"] -->|스케줄 트리거| RPT
     RPT -->|저장| DB
-
-    GW -->|alert-relay| REDIS
-    REDIS -->|Pub/Sub| WS["WebSocket 서버 (TS)"]
-    WS --> WEB["웹 대시보드 (React)"]
-    MCP -.조회.-> WEB`;
+    REDIS -->|Pub/Sub| WS["WebSocket 서버"]
+    WS --> WEB["웹 대시보드"]
+    MCP -.조회.-> WEB
+${CLASS_DEFS}
+    class RPT python
+    class MCP,WS,WEB ts
+    class KAFKA,REDIS,DB,N8N ext`;
 
 export default function ArchitecturePage() {
   const totalCount = TOPOLOGY.reduce((sum, g) => sum + g.items.length, 0);
@@ -54,17 +79,36 @@ export default function ArchitecturePage() {
           왜 떠 있고 서로 어떻게 연결되는지를 보여준다.
         </Typography>
 
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 3 }}>
+          {LEGEND.map((item) => (
+            <Chip key={item.label} size="small" label={item.label} sx={{ bgcolor: item.fill, color: item.text }} />
+          ))}
+        </Box>
+
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
           <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 700 }}>
-            데이터 흐름
+            ① 결제 처리 흐름
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            결제 요청 하나가 실제로 거치는 경로. 실선은 직접 호출/이벤트, 점선은 도구
-            호출·조회 관계(MCP 서버가 여러 데이터소스를 다른 에이전트에게 중개하는 것).
+            결제 요청 하나가 접수돼 저장되고, 이상탐지까지 이어지는 실시간 경로.
           </Typography>
-          <MermaidDiagram definition={FLOW_DEFINITION} />
+          <MermaidDiagram definition={PAYMENT_FLOW_DEFINITION} />
         </Paper>
 
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 700 }}>
+            ② 조회 · 분석 흐름
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            쌓인 데이터를 MCP 서버가 도구로 노출하고, AI 리포트와 대시보드가 그걸 조회/구독하는
+            경로 (점선 = 도구 호출·조회, 실선 = 이벤트/트리거).
+          </Typography>
+          <MermaidDiagram definition={ANALYTICS_FLOW_DEFINITION} />
+        </Paper>
+
+        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 700 }}>
+          ③ 전체 컨테이너 목록
+        </Typography>
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="overline" color="text.secondary">
             EC2 인스턴스 (Terraform 프로비저닝, t3.large)
