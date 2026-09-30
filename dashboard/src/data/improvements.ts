@@ -10,10 +10,11 @@ export interface Improvement {
 
 export const IMPROVEMENTS: Improvement[] = [
   {
-    title: "테스트 코드 부재",
+    title: "테스트 코드 - payment-api만 있고 나머지 서비스는 없음",
     description:
-      "Java 쪽에 Spring Boot 기본 생성 테스트(PaymentApiApplicationTests 등)만 있고 실제 유닛/통합 테스트가 없음. " +
-      "결제 API처럼 정확성이 중요한 도메인일수록 우선순위가 높은 보완점.",
+      "payment-api는 컨트롤러(MockMvc)/Kafka 발행 로직(Mockito) 단위 테스트 9건을 추가함(검증 실패 400, " +
+      "발행 성공/실패/타임아웃/인터럽트 케이스 포함). db-writer-consumer(Java), gateway/mcp-server/ws-server(TS), " +
+      "3개 Python 에이전트는 아직 기본 생성 테스트조차 없음 - 다음 우선순위.",
     priority: "high",
   },
   {
