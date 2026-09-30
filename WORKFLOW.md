@@ -263,9 +263,9 @@ Phase 2(DB Writer)·Phase 3(Kafka+Redis) 뒤에 놓은 이유: 쿼리할 실제 
 - [x] GOOGLE_API_KEY는 Terraform 코드/state/user_data 어디에도 값을 넣지 않고, 배포 후 SSH 접속 상태에서 `kubectl create secret`으로 직접 주입하도록 설계 (비밀값은 파일에 남기지 않는다는 이 프로젝트의 일관된 원칙)
 - 실제로 겪은 문제: [문제해결_로그.md](./docs/문제해결_로그.md) [6]번 (네임스페이스 적용 순서 버그, CPU 리소스 요청 총합이 노드 용량과 정확히 일치해 생긴 스케줄링 교착)
 
-### Phase 13 — 통합 테스트 + 문서화
-- [ ] 전체 흐름 End-to-End 확인
-- [ ] README/ADR 작성 (이전 프로젝트와 동일한 패턴 — 설계 이유를 면접에서 바로 재현 가능하게, MCP 서버를 왜/어떻게 썼는지도 포함)
+### Phase 13 — 통합 테스트 + 문서화 ✅ 완료
+- [x] 전체 흐름 End-to-End 확인 — 로컬: 실제 결제 요청 하나를 게이트웨이→payment-api→Kafka→db-writer-consumer→Postgres까지 2초 내 완주 확인 (`idempotency_key=e2e00001-...`). EC2: 11시간 연속 가동 중인 클러스터에서 트래픽 생성기가 계속 실제 트래픽을 흘리고 있는 것 확인, 대시보드/인프라 현황 페이지가 이를 실시간 반영하는 것까지 브라우저로 확인. n8n→Slack 알림 경로는 Phase 7에서 검증 완료했고 현재는 사용자 요청으로 토글 꺼둔 상태(대시보드에서 언제든 재활성화 가능)
+- [x] README/ADR 작성 — 루트 [README.md](../README.md) 신규 작성(아키텍처 다이어그램/기술스택/로컬·클라우드 실행법/문서 인덱스), [docs/ADR.md](./docs/ADR.md)에 ADR-6~10 추가(MCP 서버 설계, LLM 벤더 선택, API Gateway 패턴, WebSocket 프로세스 분리, Terraform/k3s/IAM 인프라 결정) — 이전 프로젝트와 동일하게 "왜 그렇게 했는가"를 면접에서 바로 재현 가능한 수준으로 기록
 
 ---
 

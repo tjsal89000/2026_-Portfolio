@@ -26,5 +26,5 @@ export const PHASES: Phase[] = [
   { number: 10, shortLabel: "대시보드", title: "웹 대시보드 (React + WebSocket 서버)", status: "done", summary: "실시간 트래픽/알림/AI 리포트를 보여주는 지금 이 화면 자체" },
   { number: 11, shortLabel: "컨테이너화", title: "컨테이너화 (Docker + k3s)", status: "done", summary: "9개 컴포넌트 Dockerfile 작성 + k3s 매니페스트(Deployment/Service) 작성" },
   { number: 12, shortLabel: "Terraform", title: "인프라 (Terraform)", status: "done", summary: "EC2 인스턴스 프로비저닝 + user_data로 Docker/k3s 설치 자동화, terraform apply 한 번으로 실제 웹 대시보드 접속 확인" },
-  { number: 13, shortLabel: "통합테스트", title: "통합 테스트 + 문서화", status: "in-progress", summary: "전체 흐름 End-to-End 확인, README/ADR 작성" },
+  { number: 13, shortLabel: "통합테스트", title: "통합 테스트 + 문서화", status: "done", summary: "로컬/EC2 End-to-End 확인 완료, 루트 README.md 신규 작성 + ADR 5건 추가(총 10건)" },
 ];
