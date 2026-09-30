@@ -7,6 +7,7 @@ import ProgressPage from "./pages/ProgressPage";
 import InfraPage from "./pages/InfraPage";
 import TestsPage from "./pages/TestsPage";
 import ArchitecturePage from "./pages/ArchitecturePage";
+import TroubleshootingPage from "./pages/TroubleshootingPage";
 import type { ViewKey } from "./viewKey";
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
         {view === "tests" && <TestsPage />}
         {view === "infra" && <InfraPage />}
         {view === "architecture" && <ArchitecturePage />}
+        {view === "troubleshooting" && <TroubleshootingPage />}
       </Box>
     </Box>
   );

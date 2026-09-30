@@ -8,6 +8,7 @@ import ChecklistIcon from "@mui/icons-material/ChecklistOutlined";
 import DnsIcon from "@mui/icons-material/DnsOutlined";
 import ScienceIcon from "@mui/icons-material/ScienceOutlined";
 import SchemaIcon from "@mui/icons-material/SchemaOutlined";
+import BuildIcon from "@mui/icons-material/BuildOutlined";
 import InsightsIcon from "@mui/icons-material/InsightsOutlined";
 import AccountTreeIcon from "@mui/icons-material/AccountTreeOutlined";
 import QueryStatsIcon from "@mui/icons-material/QueryStatsOutlined";
@@ -45,6 +46,7 @@ const NAV_ITEMS: { label: string; icon: ReactElement; view: ViewKey }[] = [
   { label: "테스트 코드", icon: <ScienceIcon />, view: "tests" },
   { label: "인프라 현황", icon: <DnsIcon />, view: "infra" },
   { label: "인프라 구성도", icon: <SchemaIcon />, view: "architecture" },
+  { label: "트러블슈팅", icon: <BuildIcon />, view: "troubleshooting" },
 ];
 
 // 이 대시보드 안의 화면이 아니라, nginx가 같은 origin 아래로 묶어준 별개의 도구(운영
