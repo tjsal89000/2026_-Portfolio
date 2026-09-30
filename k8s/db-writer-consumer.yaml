@@ -25,7 +25,10 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               value: "aiops"
             - name: SPRING_DATASOURCE_PASSWORD
-              value: "aiops123"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: POSTGRES_PASSWORD
             - name: SPRING_DATA_REDIS_HOST
               value: "redis"
             - name: SPRING_DATA_REDIS_PORT

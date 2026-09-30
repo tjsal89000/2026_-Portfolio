@@ -48,6 +48,19 @@ done
 # 적용하는데, "n8n.yaml"처럼 "namespace.yaml"보다 알파벳상 앞서는 파일들이 namespace가 아직
 # 없는 상태에서 먼저 적용되면 "namespaces aiops not found"로 실패한다 (실제로 겪은 문제).
 kubectl apply -f /opt/app/k8s/namespace.yaml
+
+# Postgres 비밀번호는 GOOGLE_API_KEY와 달리 외부에서 발급받는 값이 아니라 컨테이너끼리만
+# 쓰는 내부 값이라, SSH 접속 없이 프로비저닝 시점에 매 인스턴스마다 무작위로 생성해서
+# Secret으로 바로 넣는다 (SSH 키페어를 Terraform이 직접 생성하는 것과 같은 논리 - main.tf의
+# tls_private_key 참고). Postgres가 이 값으로 최초 초기화되므로, 아래에서 k8s/를 적용하기
+# 전에 Secret이 먼저 있어야 한다.
+POSTGRES_PASSWORD=$(openssl rand -base64 24)
+kubectl create secret generic postgres-secrets \
+  --namespace aiops \
+  --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+  --from-literal=REPORT_DB_DSN="dbname=aiops_db user=aiops password=$POSTGRES_PASSWORD host=postgres port=5432" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 kubectl apply -f /opt/app/k8s/
 
 # report-agent는 GOOGLE_API_KEY Secret이 아직 없어서 이 시점엔 CrashLoop 상태로 대기한다 -

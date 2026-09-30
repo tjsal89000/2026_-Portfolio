@@ -6,6 +6,9 @@
 #     --namespace aiops \
 #     --from-literal=GOOGLE_API_KEY=<발급받은_키>
 #
+# REPORT_DB_DSN(Postgres 접속 문자열)은 GOOGLE_API_KEY와 달리 컨테이너끼리만 쓰는 내부
+# 값이라 user_data.sh.tpl이 프로비저닝 시점에 무작위로 생성해 postgres-secrets Secret에
+# 자동으로 넣어준다 - 여기서는 그 Secret을 참조만 한다.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,7 +32,10 @@ spec:
             - name: MCP_SERVER_URL
               value: "http://mcp-server:8090/mcp"
             - name: REPORT_DB_DSN
-              value: "dbname=aiops_db user=aiops password=aiops123 host=postgres port=5432"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: REPORT_DB_DSN
             - name: GOOGLE_API_KEY
               valueFrom:
                 secretKeyRef:

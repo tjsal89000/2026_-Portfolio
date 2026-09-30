@@ -63,7 +63,10 @@ spec:
             - name: POSTGRES_USER
               value: "aiops"
             - name: POSTGRES_PASSWORD
-              value: "aiops123"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
               value: "aiops_db"
             - name: AWS_REGION
