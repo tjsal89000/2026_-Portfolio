@@ -16,6 +16,7 @@ import { Redis } from "ioredis";
 import { WebSocket, WebSocketServer } from "ws";
 import { getLatestReports } from "./reports.js";
 import { listEc2Instances, listPods } from "./infra.js";
+import { getRecentPayments } from "./payments.js";
 
 const PORT = 8096;
 
@@ -35,6 +36,15 @@ app.get("/infra/ec2", async (_req, res) => {
     res.json({ instances: await listEc2Instances() });
   } catch (err) {
     res.json({ instances: [], error: (err as Error).message });
+  }
+});
+
+app.get("/payments/recent", async (req, res) => {
+  const limit = Number(req.query.limit ?? 20);
+  try {
+    res.json({ payments: await getRecentPayments(limit) });
+  } catch (err) {
+    res.json({ payments: [], error: (err as Error).message });
   }
 });
 

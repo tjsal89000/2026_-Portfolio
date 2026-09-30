@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { WS_ORIGIN } from "../apiOrigin";
+import { API_ORIGIN, WS_ORIGIN } from "../apiOrigin";
 
 export interface PaymentEvent {
   idempotencyKey: string;
@@ -38,6 +38,33 @@ export function useLiveFeed() {
   // 결제 이벤트가 초당 여러 건 들어올 때마다 스파크라인을 매번 다시 그리지 않기 위함.
   const bucketsRef = useRef<Map<number, number>>(new Map());
   const [, setTick] = useState(0);
+
+  // 새로고침해도 "실시간 트래픽 플로우"가 텅 비어 보이지 않도록, 마운트 시 DB(payments
+  // 테이블)에서 최근 내역을 가져와 초기값으로 채운다. 그 사이 WebSocket으로 이미 들어온
+  // 항목이 있으면(둘 다 마운트 시 동시에 시작되는 별개의 effect라 순서를 보장 못 함)
+  // idempotencyKey로 중복만 걸러내고 실시간 쪽을 우선한다.
+  useEffect(() => {
+    fetch(`${API_ORIGIN}/ws-server/payments/recent?limit=${MAX_FEED_ITEMS}`)
+      .then((res) => res.json())
+      .then((json) => {
+        const seeded: FeedPaymentItem[] = (json.payments ?? []).map(
+          (p: PaymentEvent & { processedAt: string }) => ({
+            ...p,
+            receivedAt: new Date(p.processedAt).getTime(),
+          })
+        );
+        setPayments((prev) => {
+          const existingKeys = new Set(prev.map((p) => p.idempotencyKey));
+          return [...prev, ...seeded.filter((p) => !existingKeys.has(p.idempotencyKey))].slice(
+            0,
+            MAX_FEED_ITEMS
+          );
+        });
+      })
+      .catch(() => {
+        // ws-server가 아직 안 떠있어도 대시보드 자체는 그대로 보여야 함
+      });
+  }, []);
 
   useEffect(() => {
     const ws = new WebSocket(WS_URL);
