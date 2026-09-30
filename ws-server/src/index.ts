@@ -22,10 +22,20 @@ const PORT = 8096;
 
 const app = express();
 
+// 다른 세 엔드포인트와 달리 이 라우트만 try/catch가 없었던 게 실제 장애로 드러났다 - Postgres가
+// 잠깐 죽었을 때 getLatestReports()가 던진 예외가 처리되지 않은 Promise 거부로 남아
+// ws-server 프로세스 전체를 죽여버렸다(WebSocket 연결까지 전부 끊김).
+// 응답 형태는 배열 그대로 유지한다 - 대시보드(OverviewPage.tsx)가 이 엔드포인트만큼은
+// { reports: [...] } 래퍼 없이 배열을 바로 받는다고 가정하고 있어서, 에러 시에도 빈 배열을
+// 반환해 타입을 그대로 맞춘다(다른 세 엔드포인트처럼 error 필드를 얹으면 프론트가 깨짐).
 app.get("/reports/latest", async (req, res) => {
   const limit = Number(req.query.limit ?? 5);
-  const reports = await getLatestReports(limit);
-  res.json(reports);
+  try {
+    res.json(await getLatestReports(limit));
+  } catch (err) {
+    console.error("[/reports/latest] 조회 실패:", (err as Error).message);
+    res.json([]);
+  }
 });
 
 // "인프라 현황" 페이지가 쓰는 엔드포인트 - EC2/Pod 조회가 실패해도(로컬 개발 환경처럼
