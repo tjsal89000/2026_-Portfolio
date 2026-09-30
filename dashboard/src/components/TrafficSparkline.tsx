@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Box, useTheme } from "@mui/material";
 
 interface TpsPoint {
@@ -11,11 +11,12 @@ interface TrafficSparklineProps {
   height?: number;
 }
 
-// 내부 좌표계를 고정 픽셀 단위로 두고 viewBox의 기본 비율 유지(preserveAspectRatio 기본값)로
-// 스케일한다 - 이전 버전처럼 "none"으로 축 비율을 무시하면 안에 들어가는 축 눈금 텍스트가
-// 가로/세로로 다르게 늘어나 찌그러져 보인다.
-const VIEW_WIDTH = 640;
 const MARGIN = { top: 12, right: 12, bottom: 26, left: 44 };
+
+// 이상탐지 에이전트(agents/anomaly-detector/redis_watcher.py)가 실제로 쓰는 "TPS 급증" 판정
+// 배율과 정확히 같은 값. 그래프의 임계선이 실제 백엔드 로직과 숫자가 어긋나면 그래프를 못
+// 믿게 되므로, 하드코딩된 상수 하나로 양쪽이 항상 같은 값을 보게 맞춘다.
+const TPS_SPIKE_MULTIPLIER = 3.0;
 
 function formatTime(second: number): string {
   return new Date(second * 1000).toLocaleTimeString("ko-KR", { hour12: false });
@@ -25,18 +26,39 @@ function formatTime(second: number): string {
 // 옅은 색으로("recessive") 넣어서 그래프 혼자서도 값을 읽을 수 있게 한다.
 export default function TrafficSparkline({ points, height = 180 }: TrafficSparklineProps) {
   const theme = useTheme();
+  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const plotWidth = VIEW_WIDTH - MARGIN.left - MARGIN.right;
+  // viewBox 너비를 실제 컨테이너 픽셀 너비에 정확히 맞춘다 - 고정 숫자(예: 640)를 쓰면
+  // preserveAspectRatio 기본 동작("xMidYMid meet")이 종횡비를 맞추려고 좌우에 여백을 남겨서
+  // 그래프가 가운데에만 작게 떠 보이는 문제가 있었다. 컨테이너 너비 = viewBox 너비로 맞추면
+  // 스케일링 자체가 필요 없어져서 항상 꽉 차고, 안의 텍스트도 늘어나 찌그러지지 않는다.
+  const [width, setWidth] = useState(640);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setWidth(w);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const plotWidth = width - MARGIN.left - MARGIN.right;
   const plotHeight = height - MARGIN.top - MARGIN.bottom;
 
   const maxCount = Math.max(1, ...points.map((p) => p.count));
-  // "보기 좋은" 상한(1, 2, 5, 10, 20, 50 ...) 중 실제 최댓값보다 큰 첫 값을 골라서, 그래프가
-  // 매 순간 최댓값에 딱 붙어 출렁이지 않고 y축 상단에 약간의 여백을 두게 한다.
+  const meanCount = points.length > 0 ? points.reduce((sum, p) => sum + p.count, 0) / points.length : 0;
+  const threshold = meanCount * TPS_SPIKE_MULTIPLIER;
+
+  // "보기 좋은" 상한(1, 2, 5, 10, 20, 50 ...) 중 실제 최댓값과 임계선보다 큰 첫 값을 골라서,
+  // 그래프가 매 순간 최댓값에 딱 붙어 출렁이지 않고 임계선도 항상 화면 안에 들어오게 한다.
   const niceMax = (() => {
+    const target = Math.max(maxCount, threshold);
     const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
-    return steps.find((s) => s >= maxCount) ?? maxCount;
+    return steps.find((s) => s >= target) ?? target;
   })();
 
   const stepX = points.length > 1 ? plotWidth / (points.length - 1) : 0;
@@ -57,8 +79,7 @@ export default function TrafficSparkline({ points, height = 180 }: TrafficSparkl
   const handleMouseMove = (e: MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current || points.length === 0) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const ratioX = (e.clientX - rect.left) / rect.width;
-    const svgX = ratioX * VIEW_WIDTH;
+    const svgX = e.clientX - rect.left;
     const index = Math.round((svgX - MARGIN.left) / (stepX || 1));
     setHoverIndex(Math.min(Math.max(index, 0), points.length - 1));
   };
@@ -66,12 +87,14 @@ export default function TrafficSparkline({ points, height = 180 }: TrafficSparkl
   const hovered = hoverIndex !== null ? linePoints[hoverIndex] : null;
   const axisColor = theme.palette.divider;
   const textColor = theme.palette.text.secondary;
+  // 급증 판정 임계값이라 "위험/경고" 계열 색으로 데이터 라인(primary)과 확실히 구분한다.
+  const thresholdColor = theme.palette.error.main;
 
   return (
-    <Box sx={{ position: "relative", width: "100%" }}>
+    <Box ref={containerRef} sx={{ position: "relative", width: "100%" }}>
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${VIEW_WIDTH} ${height}`}
+        viewBox={`0 0 ${width} ${height}`}
         width="100%"
         height={height}
         onMouseMove={handleMouseMove}
@@ -83,7 +106,7 @@ export default function TrafficSparkline({ points, height = 180 }: TrafficSparkl
           <g key={t}>
             <line
               x1={MARGIN.left}
-              x2={VIEW_WIDTH - MARGIN.right}
+              x2={width - MARGIN.right}
               y1={yAt(t)}
               y2={yAt(t)}
               stroke={axisColor}
@@ -98,17 +121,36 @@ export default function TrafficSparkline({ points, height = 180 }: TrafficSparkl
 
         {/* X축 시각 눈금 */}
         {xTickIndices.map((i) => (
-          <text
-            key={i}
-            x={xAt(i)}
-            y={height - 6}
-            textAnchor="middle"
-            fontSize={10}
-            fill={textColor}
-          >
+          <text key={i} x={xAt(i)} y={height - 6} textAnchor="middle" fontSize={10} fill={textColor}>
             {formatTime(points[i].second)}
           </text>
         ))}
+
+        {/* 이상탐지 임계선 - "평소(60초 평균) 대비 3배" 지점. 실제 평소 트래픽이 0에 가까우면
+            임계선도 0 근처라 의미가 없으므로 그 경우엔 그리지 않는다. */}
+        {threshold > 0.5 && (
+          <g>
+            <line
+              x1={MARGIN.left}
+              x2={width - MARGIN.right}
+              y1={yAt(threshold)}
+              y2={yAt(threshold)}
+              stroke={thresholdColor}
+              strokeWidth={1.5}
+              strokeDasharray="6 4"
+              opacity={0.8}
+            />
+            <text
+              x={width - MARGIN.right}
+              y={yAt(threshold) - 5}
+              textAnchor="end"
+              fontSize={10}
+              fill={thresholdColor}
+            >
+              이상탐지 임계선 (평소×{TPS_SPIKE_MULTIPLIER.toFixed(0)})
+            </text>
+          </g>
+        )}
 
         {/* 데이터 라인 */}
         <path
@@ -140,7 +182,7 @@ export default function TrafficSparkline({ points, height = 180 }: TrafficSparkl
         <Box
           sx={{
             position: "absolute",
-            left: `${(hovered.x / VIEW_WIDTH) * 100}%`,
+            left: `${(hovered.x / width) * 100}%`,
             top: 0,
             transform: "translate(-50%, -4px)",
             bgcolor: "background.paper",
