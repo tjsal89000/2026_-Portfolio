@@ -1,4 +1,5 @@
-import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
+import { Box, Card, CardContent, Tooltip, Typography, useTheme } from "@mui/material";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 
 interface KpiCardProps {
   label: string;
@@ -7,11 +8,14 @@ interface KpiCardProps {
   // 색상 hex를 직접 넘기지 않고 팔레트의 의미(semantic) 키로 받음
   // -> 라이트/다크 모드가 바뀌어도 이 컴포넌트가 항상 theme에 맞는 색을 골라 씀
   accent?: "primary" | "success" | "error" | "warning";
+  // 지표 하나하나가 "무엇의 몇 배/몇 초 기준인지" 숫자만 봐서는 알기 어려워서(예: Kafka
+  // Consumer Lag), 우측 상단에 ? 아이콘을 두고 마우스를 올리면 설명이 뜨게 한다.
+  description?: string;
 }
 
 // 반복되는 지표 카드는 "같은 틀에 값만 다르게" 찍어내는 방식으로 만든다.
 // (여러 개 나열될 예정이라 여백/폰트 크기를 여기서 한 번만 정하면 전체가 통일됨)
-export default function KpiCard({ label, value, unit, accent = "primary" }: KpiCardProps) {
+export default function KpiCard({ label, value, unit, accent = "primary", description }: KpiCardProps) {
   const theme = useTheme();
   const accentColor = theme.palette[accent].main;
 
@@ -21,8 +25,23 @@ export default function KpiCard({ label, value, unit, accent = "primary" }: KpiC
       sx={{
         borderLeft: `4px solid ${accentColor}`,
         height: "100%",
+        position: "relative",
       }}
     >
+      {description && (
+        <Tooltip title={description} arrow placement="top">
+          <HelpOutlineIcon
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              fontSize: 16,
+              color: "text.secondary",
+              cursor: "help",
+            }}
+          />
+        </Tooltip>
+      )}
       <CardContent>
         <Typography variant="body2" color="text.secondary" gutterBottom>
           {label}

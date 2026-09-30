@@ -64,10 +64,36 @@ export default function OverviewPage() {
   }, []);
 
   const kpis = [
-    { label: "실시간 TPS", value: currentTps.toFixed(1), unit: "req/s", accent: "primary" as const },
-    { label: "최근 1분 에러율", value: errorRate.toFixed(1), unit: "%", accent: errorRate > 5 ? ("error" as const) : ("success" as const) },
-    { label: "Kafka Consumer Lag", value: kafkaLag === null ? "-" : String(kafkaLag), unit: "건", accent: "success" as const },
-    { label: "활성 알림", value: String(activeAlerts), unit: "건", accent: activeAlerts > 0 ? ("error" as const) : ("success" as const) },
+    {
+      label: "실시간 TPS",
+      value: currentTps.toFixed(1),
+      unit: "req/s",
+      accent: "primary" as const,
+      description: "최근 10초간 처리된 결제 건수를 초당 평균으로 환산한 값 (Transactions Per Second)",
+    },
+    {
+      label: "최근 1분 에러율",
+      value: errorRate.toFixed(1),
+      unit: "%",
+      accent: errorRate > 5 ? ("error" as const) : ("success" as const),
+      description: "최근 1분간 들어온 결제 이벤트 중 실패(FAILED) 상태 비율",
+    },
+    {
+      label: "Kafka Consumer Lag",
+      value: kafkaLag === null ? "-" : String(kafkaLag),
+      unit: "건",
+      accent: "success" as const,
+      description:
+        "Kafka에 쌓인 결제 이벤트 중 db-writer-consumer가 아직 처리하지 못하고 밀려있는 건수. " +
+        "0이면 들어오는 만큼 바로 처리 중이라는 뜻이고, 계속 커지면 consumer가 느려졌거나 멈췄다는 신호",
+    },
+    {
+      label: "활성 알림",
+      value: String(activeAlerts),
+      unit: "건",
+      accent: activeAlerts > 0 ? ("error" as const) : ("success" as const),
+      description: "최근 5분 이내에 이상탐지 에이전트가 발생시킨 알림(고액이상치/반복요청/쏠림/TPS급증 등) 건수",
+    },
   ];
 
   const latestReport = reports[0];
