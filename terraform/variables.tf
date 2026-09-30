@@ -17,7 +17,7 @@ variable "github_repo_url" {
 }
 
 variable "allowed_ssh_cidr" {
-  description = "SSH(22번 포트) 접근을 허용할 CIDR. 포트폴리오 데모라 기본값을 0.0.0.0/0으로 뒀지만, 실무라면 본인 IP로 좁혀야 하는 부분 - terraform.tfvars에서 재정의 권장."
+  description = "SSH(22번)와 n8n(30678번, NodePort) 접근을 허용할 CIDR - 둘 다 '관리자만 봐야 하는' 포트라 같은 변수로 묶었다. 웹 대시보드(30080번)는 포트폴리오 목적상 누구나 봐야 해서 이 변수와 무관하게 계속 0.0.0.0/0. 기본값은 0.0.0.0/0이지만 terraform.tfvars에서 본인 IP(예: 1.2.3.4/32)로 반드시 좁혀야 함 - .gitignore에 걸려있어 실제 IP는 커밋되지 않는다."
   type        = string
   default     = "0.0.0.0/0"
 }

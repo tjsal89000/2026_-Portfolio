@@ -61,13 +61,16 @@ resource "aws_security_group" "this" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # n8n - 서브패스 프록시 이슈로 로컬과 동일하게 자기 포트로 직접 노출 (NodePort)
+  # n8n - 서브패스 프록시 이슈로 로컬과 동일하게 자기 포트로 직접 노출 (NodePort).
+  # n8n Community 버전은 "읽기 전용" 계정을 지원하지 않아서(뷰어 롤은 Enterprise 전용
+  # 기능), 로그인만 하면 워크플로우를 수정할 수 있다 - 그래서 SSH와 마찬가지로 관리자
+  # 본인 IP에서만 접근 가능하게 좁힌다. 포트폴리오로 "보여줄" 용도는 스크린샷/녹화로 대체.
   ingress {
-    description = "n8n (NodePort)"
+    description = "n8n (NodePort, admin only)"
     from_port   = 30678
     to_port     = 30678
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.allowed_ssh_cidr]
   }
 
   egress {
