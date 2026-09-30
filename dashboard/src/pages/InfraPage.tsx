@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Chip, Paper, Table, TableBody, TableCell, TableHead, TableRow, Toolbar, Typography } from "@mui/material";
+import { Box, Chip, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Toolbar, Typography } from "@mui/material";
 import { API_ORIGIN } from "../apiOrigin";
 
 interface Ec2Instance {
@@ -99,32 +99,34 @@ export default function InfraPage() {
             </Typography>
           )}
           {!ec2Error && instances.length > 0 && (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>이름</TableCell>
-                  <TableCell>인스턴스 ID</TableCell>
-                  <TableCell>타입</TableCell>
-                  <TableCell>상태</TableCell>
-                  <TableCell>퍼블릭 IP</TableCell>
-                  <TableCell>시작 시각</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {instances.map((inst) => (
-                  <TableRow key={inst.instanceId}>
-                    <TableCell>{inst.name || "-"}</TableCell>
-                    <TableCell>{inst.instanceId}</TableCell>
-                    <TableCell>{inst.instanceType}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={inst.state} color={EC2_STATE_COLOR[inst.state] ?? "default"} variant="outlined" />
-                    </TableCell>
-                    <TableCell>{inst.publicIp ?? "-"}</TableCell>
-                    <TableCell>{inst.launchTime ? new Date(inst.launchTime).toLocaleString() : "-"}</TableCell>
+            <TableContainer sx={{ maxWidth: "100%", overflowX: "auto" }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>이름</TableCell>
+                    <TableCell>인스턴스 ID</TableCell>
+                    <TableCell>타입</TableCell>
+                    <TableCell>상태</TableCell>
+                    <TableCell>퍼블릭 IP</TableCell>
+                    <TableCell>시작 시각</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {instances.map((inst) => (
+                    <TableRow key={inst.instanceId}>
+                      <TableCell>{inst.name || "-"}</TableCell>
+                      <TableCell>{inst.instanceId}</TableCell>
+                      <TableCell>{inst.instanceType}</TableCell>
+                      <TableCell>
+                        <Chip size="small" label={inst.state} color={EC2_STATE_COLOR[inst.state] ?? "default"} variant="outlined" />
+                      </TableCell>
+                      <TableCell>{inst.publicIp ?? "-"}</TableCell>
+                      <TableCell>{inst.launchTime ? new Date(inst.launchTime).toLocaleString() : "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </Paper>
 
@@ -143,32 +145,34 @@ export default function InfraPage() {
             </Typography>
           )}
           {!podsError && pods.length > 0 && (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>이름</TableCell>
-                  <TableCell>상태</TableCell>
-                  <TableCell>Ready</TableCell>
-                  <TableCell>재시작</TableCell>
-                  <TableCell>노드</TableCell>
-                  <TableCell>시작 시각</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {pods.map((pod) => (
-                  <TableRow key={pod.name}>
-                    <TableCell>{pod.name}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={pod.phase} color={POD_PHASE_COLOR[pod.phase] ?? "default"} variant="outlined" />
-                    </TableCell>
-                    <TableCell>{pod.ready}</TableCell>
-                    <TableCell>{pod.restarts}</TableCell>
-                    <TableCell>{pod.node}</TableCell>
-                    <TableCell>{pod.startTime ? new Date(pod.startTime).toLocaleString() : "-"}</TableCell>
+            <TableContainer sx={{ maxWidth: "100%", overflowX: "auto" }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>이름</TableCell>
+                    <TableCell>상태</TableCell>
+                    <TableCell>Ready</TableCell>
+                    <TableCell>재시작</TableCell>
+                    <TableCell>노드</TableCell>
+                    <TableCell>시작 시각</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {pods.map((pod) => (
+                    <TableRow key={pod.name}>
+                      <TableCell>{pod.name}</TableCell>
+                      <TableCell>
+                        <Chip size="small" label={pod.phase} color={POD_PHASE_COLOR[pod.phase] ?? "default"} variant="outlined" />
+                      </TableCell>
+                      <TableCell>{pod.ready}</TableCell>
+                      <TableCell>{pod.restarts}</TableCell>
+                      <TableCell>{pod.node}</TableCell>
+                      <TableCell>{pod.startTime ? new Date(pod.startTime).toLocaleString() : "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </Paper>
       </Box>

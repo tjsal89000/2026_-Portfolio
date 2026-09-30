@@ -63,9 +63,13 @@ const EXTERNAL_TOOLS = [
 interface SidebarProps {
   view: ViewKey;
   onNavigate: (view: ViewKey) => void;
+  // 모바일 폭에서는 항상 떠있는 permanent Drawer 대신, 평소엔 숨어있다가 TopBar의 햄버거
+  // 버튼으로 열고 닫는 temporary Drawer로 바뀐다 (MUI 공식 "반응형 Drawer" 패턴).
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
-export default function Sidebar({ view, onNavigate }: SidebarProps) {
+export default function Sidebar({ view, onNavigate, mobileOpen, onMobileClose }: SidebarProps) {
   const [alertsEnabled, setAlertsEnabled] = useState(true);
 
   useEffect(() => {
@@ -90,20 +94,15 @@ export default function Sidebar({ view, onNavigate }: SidebarProps) {
     }
   };
 
-  return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: DRAWER_WIDTH,
-        flexShrink: 0,
-        [`& .MuiDrawer-paper`]: {
-          width: DRAWER_WIDTH,
-          boxSizing: "border-box",
-          backgroundColor: awsColors.squidInk,
-          color: "#FFFFFF",
-        },
-      }}
-    >
+  // 모바일에서는 메뉴 하나 고르면 Drawer가 화면 전체를 덮고 있던 상태이니 자동으로 닫아준다 -
+  // 데스크탑(permanent)에서는 onMobileClose가 애초에 아무 의미 없어서 호출해도 무해함.
+  const handleNavigate = (v: ViewKey) => {
+    onNavigate(v);
+    onMobileClose();
+  };
+
+  const drawerContent = (
+    <>
       <Toolbar>
         <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
           AIOps 결제 플랫폼
@@ -114,7 +113,7 @@ export default function Sidebar({ view, onNavigate }: SidebarProps) {
           <ListItemButton
             key={item.label}
             selected={item.view === view}
-            onClick={() => onNavigate(item.view)}
+            onClick={() => handleNavigate(item.view)}
             sx={{
               borderRadius: 1,
               mb: 0.5,
@@ -196,7 +195,44 @@ export default function Sidebar({ view, onNavigate }: SidebarProps) {
           onChange={(e) => handleToggle(e.target.checked)}
         />
       </Box>
-    </Drawer>
+    </>
+  );
+
+  const paperSx = {
+    width: DRAWER_WIDTH,
+    boxSizing: "border-box" as const,
+    backgroundColor: awsColors.squidInk,
+    color: "#FFFFFF",
+  };
+
+  return (
+    <Box component="nav" sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}>
+      {/* 모바일: 평소엔 안 보이고 TopBar 햄버거로 열고 닫는 오버레이 Drawer */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        ModalProps={{ keepMounted: true }} // 다시 열 때 매번 새로 마운트하지 않아서 더 빠름
+        sx={{
+          display: { xs: "block", sm: "none" },
+          [`& .MuiDrawer-paper`]: paperSx,
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      {/* 데스크탑: 항상 떠있는 고정 Drawer */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: "none", sm: "block" },
+          [`& .MuiDrawer-paper`]: paperSx,
+        }}
+        open
+      >
+        {drawerContent}
+      </Drawer>
+    </Box>
   );
 }
 
