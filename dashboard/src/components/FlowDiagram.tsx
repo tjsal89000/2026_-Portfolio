@@ -129,7 +129,15 @@ export default function FlowDiagram({ nodes, edges, nodeWidth = 130, nodeHeight 
       <svg
         viewBox={`-10 -10 ${contentWidth + 20} ${contentHeight + 20}`}
         width="100%"
-        style={{ display: "block", minWidth: 480 }}
+        style={{
+          display: "block",
+          // width:100%가 컨테이너 전체 폭까지 확대해버려서 노드가 실제보다 훨씬 크게 나오던
+          // 문제 - 원래 설계 크기(내용물 크기)보다 더 키우지는 않게 상한을 걸고, 대신 그보다
+          // 좁은 화면(모바일)에서는 여전히 줄어들 수 있게 minWidth는 낮게만 잡는다.
+          maxWidth: contentWidth + 20,
+          minWidth: 320,
+          margin: "0 auto",
+        }}
       >
         <defs>
           <marker id="flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
