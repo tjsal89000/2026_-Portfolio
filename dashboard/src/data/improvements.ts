@@ -10,11 +10,11 @@ export interface Improvement {
 
 export const IMPROVEMENTS: Improvement[] = [
   {
-    title: "테스트 코드 - payment-api만 있고 나머지 서비스는 없음",
+    title: "테스트 코드 - Java/TS는 있고 Python 3개는 없음",
     description:
-      "payment-api는 컨트롤러(MockMvc)/Kafka 발행 로직(Mockito) 단위 테스트 9건을 추가함(검증 실패 400, " +
-      "발행 성공/실패/타임아웃/인터럽트 케이스 포함). db-writer-consumer(Java), gateway/mcp-server/ws-server(TS), " +
-      "3개 Python 에이전트는 아직 기본 생성 테스트조차 없음 - 다음 우선순위.",
+      "payment-api·db-writer-consumer(Java), gateway·mcp-server·ws-server(TS, vitest)는 핵심 로직 단위 " +
+      "테스트를 갖춤(총 26건). 트래픽 생성/이상탐지/AI 리포트 3개 Python 에이전트는 아직 없음 - 다음 우선순위. " +
+      "'테스트 코드' 메뉴에서 실제 코드를 바로 볼 수 있음.",
     priority: "high",
   },
   {

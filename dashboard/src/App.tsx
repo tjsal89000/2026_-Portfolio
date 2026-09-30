@@ -5,6 +5,7 @@ import TopBar from "./layout/TopBar";
 import OverviewPage from "./pages/OverviewPage";
 import ProgressPage from "./pages/ProgressPage";
 import InfraPage from "./pages/InfraPage";
+import TestsPage from "./pages/TestsPage";
 import type { ViewKey } from "./viewKey";
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
       >
         {view === "overview" && <OverviewPage />}
         {view === "progress" && <ProgressPage />}
+        {view === "tests" && <TestsPage />}
         {view === "infra" && <InfraPage />}
       </Box>
     </Box>
