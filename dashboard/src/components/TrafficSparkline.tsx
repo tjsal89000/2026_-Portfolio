@@ -147,7 +147,7 @@ export default function TrafficSparkline({ points, height = 180 }: TrafficSparkl
               fontSize={10}
               fill={thresholdColor}
             >
-              이상탐지 임계선 (평소×{TPS_SPIKE_MULTIPLIER.toFixed(0)})
+              이상탐지 임계선 (1분 평균×{TPS_SPIKE_MULTIPLIER.toFixed(0)})
             </text>
           </g>
         )}
