@@ -57,10 +57,16 @@ export default function PhaseFlow({ phases }: PhaseFlowProps) {
   const hoveredPos = hoverIndex !== null ? positions[hoverIndex] : null;
 
   return (
-    <Box sx={{ position: "relative", width: "100%", overflowX: "auto" }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: 640, display: "block" }}>
-        {/* 화살표 마커 정의 - 화살촉 하나를 정의해두고 모든 연결선에서 재사용 */}
-        <defs>
+    // 바깥 Box는 overflow를 지정하지 않는다(=visible) - 안쪽 스크롤 Box에만 overflowX를
+    // 주는 이유: 이 Box에 overflowX:auto를 직접 걸면 CSS 스펙상 overflowY도 자동으로
+    // auto로 강제돼서(둘 중 하나가 visible이 아니면 나머지도 visible일 수 없음), 절대
+    // 위치로 떠 있는 툴팁이 이 Box 경계를 넘어가는 순간(Phase 7~13이 있는 아랫줄, 또는
+    // 우측 끝 노드) 그대로 잘려서 안 보이거나 스크롤바가 튀어나오는 문제가 있었다.
+    <Box sx={{ position: "relative", width: "100%" }}>
+      <Box sx={{ overflowX: "auto" }}>
+        <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: 640, display: "block" }}>
+          {/* 화살표 마커 정의 - 화살촉 하나를 정의해두고 모든 연결선에서 재사용 */}
+          <defs>
           <marker id="phase-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" fill={theme.palette.divider} />
           </marker>
@@ -131,7 +137,8 @@ export default function PhaseFlow({ phases }: PhaseFlowProps) {
             </g>
           );
         })}
-      </svg>
+        </svg>
+      </Box>
 
       {hovered && hoveredPos && (
         <Box
