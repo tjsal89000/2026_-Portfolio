@@ -87,7 +87,7 @@ export default function OverviewPage() {
         <Grid container spacing={2}>
           {/* 실시간 트래픽 플로우: 최근 60초 TPS 스파크라인 + 최근 결제 피드 */}
           <Grid size={{ xs: 12, md: 8 }}>
-            <Paper variant="outlined" sx={{ p: 3, height: 360, display: "flex", flexDirection: "column" }}>
+            <Paper variant="outlined" sx={{ p: 3, height: 480, display: "flex", flexDirection: "column" }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
                 <Typography variant="h6">실시간 트래픽 플로우</Typography>
                 <Chip
@@ -97,7 +97,7 @@ export default function OverviewPage() {
                   variant="outlined"
                 />
               </Box>
-              <TrafficSparkline values={tpsHistory} height={64} />
+              <TrafficSparkline points={tpsHistory} height={180} />
               <List dense sx={{ flexGrow: 1, overflow: "auto", mt: 1 }}>
                 {payments.length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>
@@ -124,7 +124,7 @@ export default function OverviewPage() {
 
           {/* 이상탐지 알림 타임라인 */}
           <Grid size={{ xs: 12, md: 4 }}>
-            <Paper variant="outlined" sx={{ p: 3, height: 360, overflow: "auto" }}>
+            <Paper variant="outlined" sx={{ p: 3, height: 480, overflow: "auto" }}>
               <Typography variant="h6" gutterBottom>
                 이상탐지 알림
               </Typography>

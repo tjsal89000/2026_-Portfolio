@@ -108,9 +108,12 @@ export function useLiveFeed() {
   }, []);
 
   const nowSec = Math.floor(Date.now() / 1000);
-  const tpsHistory: number[] = [];
+  // 그래프에 X축(시각) 라벨/툴팁을 정확히 그리려면 값뿐 아니라 "몇 초 시점인지"가 같이
+  // 필요해서, 단순 숫자 배열이 아니라 {second, count} 쌍으로 내려준다.
+  const tpsHistory: { second: number; count: number }[] = [];
   for (let i = SPARKLINE_WINDOW_SECONDS - 1; i >= 0; i--) {
-    tpsHistory.push(bucketsRef.current.get(nowSec - i) ?? 0);
+    const second = nowSec - i;
+    tpsHistory.push({ second, count: bucketsRef.current.get(second) ?? 0 });
   }
 
   let recentCount = 0;
