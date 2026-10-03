@@ -17,6 +17,16 @@ terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/*.tfvars
 !terraform/*.tfvars.example
+terraform-oci/.terraform/
+terraform-oci/*.tfstate
+terraform-oci/*.tfstate.*
+terraform-oci/*.tfvars
+terraform-oci/generated_key.pem
+terraform-failover/.terraform/
+terraform-failover/*.tfstate
+terraform-failover/*.tfstate.*
+terraform-failover/*.tfvars
+terraform-failover/lambda/failover.zip
 terraform/*.pem
 
 # OS/에디터
