@@ -10,7 +10,7 @@ export interface TroubleshootingCase {
 
 // 새 항목을 로그에 추가할 때마다 여기도 같이 갱신 - 최신순(번호 큰 순)으로 정렬해서 둠.
 export const PROJECT_CASES: TroubleshootingCase[] = [
-  { number: 12, title: "로컬 PC가 꺼졌는데 배포는 계속됐다 - 장애 전환을 클라우드 안에 둔 이유", tags: ["EC2 Spot", "Elastic IP", "EventBridge", "Lambda"] },
+  { number: 12, title: "AWS 비용 부담 때문에 온디맨드 대신 Spot + 장애 전환 구성을 선택", tags: ["EC2 Spot", "Elastic IP", "EventBridge", "Lambda", "비용 최적화"] },
   { number: 11, title: "ws-server가 Postgres 장애 때 조용히 전체 다운됨", tags: ["Node.js", "unhandled rejection", "Express"] },
   { number: 10, title: "Secret을 지워도 실행 중인 Pod는 멀쩡히 돈다", tags: ["Kubernetes", "Secret", "Pod 생명주기"] },
   { number: 9, title: "Postgres 비밀번호를 Secret으로 옮기다가 발견한 진짜 데이터 손상", tags: ["PostgreSQL", "WAL", "PVC", "장애 복구"] },
