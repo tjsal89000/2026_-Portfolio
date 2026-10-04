@@ -59,6 +59,14 @@ export const LOAD_TEST_RUNS: LoadTestRun[] = [
     note: "60 TPS를 2분 전체 측정. 기준(500ms) 안에서 끝까지 통과.",
   },
   {
+    profile: "confirm70",
+    date: "2026-10-05",
+    outcome: "completed",
+    totalRequests: 8371,
+    stages: [{ tps: 70, p95Ms: 531.5, failRatePct: null }],
+    note: "70 TPS를 2분 전체 측정. p95 531ms로 기준(500ms) 초과. 한계는 60~70 TPS 사이.",
+  },
+  {
     profile: "high",
     date: "2026-10-04",
     outcome: "aborted",
