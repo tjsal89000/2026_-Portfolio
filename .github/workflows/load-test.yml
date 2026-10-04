@@ -10,7 +10,7 @@ on:
       profile:
         description: "부하 프로필 (low: 5→20 TPS / normal: 5→40 TPS / high: 5→80 TPS)"
         type: choice
-        options: [low, normal, high, limit, confirm50, confirm60]
+        options: [low, normal, high, limit, confirm50, confirm60, confirm70]
         default: normal
 
 jobs:
