@@ -29,10 +29,12 @@ const PROFILES = {
   limit: [40, 50, 60, 70],
   // 50 TPS 한 구간만 끝까지 재는 확인용. 중단 기준을 끄고 2분을 다 채워서 p95를 정확히 본다
   confirm50: [50],
+  // 60 TPS 한 구간을 끝까지 재는 확인용 (50 TPS 다음 한계 구간)
+  confirm60: [60],
 };
 
-// confirm50은 확인용이라 중간에 멈추지 않는다. 나머지 프로필은 기준을 넘으면 자동 중단.
-const ABORT_ON_FAIL = PROFILE !== "confirm50";
+// confirm으로 시작하는 프로필은 확인용이라 중간에 멈추지 않는다. 나머지 프로필은 기준을 넘으면 자동 중단.
+const ABORT_ON_FAIL = !PROFILE.startsWith("confirm");
 
 const steps = PROFILES[PROFILE];
 if (!steps) {
