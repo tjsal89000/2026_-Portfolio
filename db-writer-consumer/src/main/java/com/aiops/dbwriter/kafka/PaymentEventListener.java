@@ -25,7 +25,8 @@ public class PaymentEventListener {
         this.metrics = metrics;
     }
 
-    @KafkaListener(topics = "${payment.topic}", containerFactory = "kafkaListenerContainerFactory")
+    // id는 ConsumerPauseService가 이 리스너를 찾아 멈추고 재개할 때 쓴다 (시연용 소비 지연 주입)
+    @KafkaListener(id = ConsumerPauseService.LISTENER_ID, topics = "${payment.topic}", containerFactory = "kafkaListenerContainerFactory")
     public void onMessage(PaymentEvent event, Acknowledgment ack) {
         try {
             Payment payment = new Payment(

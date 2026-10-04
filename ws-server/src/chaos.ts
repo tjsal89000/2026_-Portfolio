@@ -54,6 +54,16 @@ export function clampBurst(tps: number, seconds: number): { tps: number; seconds
   };
 }
 
+// 시연용 소비 지연: db-writer-consumer를 지정한 시간만큼 멈춘다. 같은 비밀번호 검사를 통과한 요청에서만 호출된다.
+const CONSUMER_URL = process.env.CONSUMER_URL ?? "http://db-writer-consumer:8081";
+
+export async function pauseConsumer(secondsInput: number): Promise<{ started: boolean; seconds: number; reason?: string }> {
+  const seconds = clampBurst(30, secondsInput).seconds;
+  const res = await fetch(`${CONSUMER_URL}/internal/consumer/pause?seconds=${seconds}`, { method: "POST" });
+  if (!res.ok) throw new Error(`consumer ${res.status}`);
+  return (await res.json()) as { started: boolean; seconds: number; reason?: string };
+}
+
 function randomPayment() {
   const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
