@@ -18,6 +18,7 @@ import { getLatestReports } from "./reports.js";
 import { listEc2Instances, listPods } from "./infra.js";
 import { getRecentPayments } from "./payments.js";
 import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
+import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
 
 const PORT = 8096;
 
@@ -93,6 +94,14 @@ app.get("/ops/traces", async (_req, res) => {
   }
 });
 
+app.get("/ops/timeline", async (_req, res) => {
+  try {
+    res.json({ events: await getTimeline() });
+  } catch (err) {
+    res.json({ events: [], error: (err as Error).message });
+  }
+});
+
 app.get("/ops/traces/:id", async (req, res) => {
   try {
     res.json({ spans: await getTrace(req.params.id) });
@@ -127,6 +136,8 @@ subscriber.on("message", (channel, message) => {
       broadcast({ type: "payment", data });
     } else if (channel === "payment:alerts:live") {
       broadcast({ type: "alert", data });
+      // 타임라인용 저장은 실시간 전송과 별개로 실패해도 브로드캐스트에 영향이 없게 따로 처리
+      saveAlert(data).catch((err) => console.error("[알림 저장 실패]", (err as Error).message));
     }
   } catch {
     // Redis 채널에 형식이 이상한 메시지가 오더라도 WebSocket 서버 전체가 죽으면 안 되므로 무시
@@ -136,6 +147,9 @@ subscriber.on("message", (channel, message) => {
 wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "hello", data: { message: "connected" } }));
 });
+
+// 테이블이 없으면 만든다. 실패해도 WebSocket과 나머지 API는 계속 동작해야 하므로 프로세스를 죽이지 않는다
+ensureAlertTable().catch((err) => console.error("[alert_log 준비 실패]", (err as Error).message));
 
 server.listen(PORT, () => {
   console.log(`[WebSocket 서버 시작] 포트 ${PORT} (GET /reports/latest, WS /ws)`);

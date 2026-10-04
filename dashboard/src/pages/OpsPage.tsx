@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Box, Chip, Grid, List, ListItem, ListItemButton, ListItemText, Paper, Toolbar, Typography } from "@mui/material";
 import KpiCard from "../components/KpiCard";
 import LoadTestPanel from "../components/LoadTestPanel";
+import IncidentTimeline from "../components/IncidentTimeline";
 import { API_ORIGIN } from "../apiOrigin";
 
 interface Slo {
@@ -254,6 +255,8 @@ export default function OpsPage() {
             </Paper>
           </Grid>
         </Grid>
+
+        <IncidentTimeline />
 
         <LoadTestPanel />
       </Box>
