@@ -129,7 +129,7 @@ export default function OpsPage() {
         </Typography>
         <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            이 화면을 만든 이유
+            화면 설명
           </Typography>
           <Typography variant="body2" color="text.secondary" component="div">
             서비스가 "돌아간다"에서 끝나지 않고, 목표를 지키고 있는지·배포가 안전한지·문제가 생기면 어디서 느려지는지를
