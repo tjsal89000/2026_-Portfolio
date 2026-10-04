@@ -1,0 +1,50 @@
+# 수동 실행 전용 부하 테스트. push/PR에는 돌지 않는다 (workflow_dispatch만).
+# 실행: GitHub 저장소 Actions 탭 → "Load test" → Run workflow → 프로필 선택.
+# 저장소 쓰기 권한이 있는 사람만 실행할 수 있어서, 공개 대시보드에 부하 버튼을 두지 않는다.
+# 대상 주소는 입력받지 않고 공개 데모로 고정해서, 임의의 사이트에 부하가 걸리지 않게 한다.
+name: Load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "부하 프로필 (low: 5→20 TPS / normal: 5→40 TPS / high: 5→80 TPS)"
+        type: choice
+        options: [low, normal, high]
+        default: normal
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PROFILE: ${{ inputs.profile }}
+      TARGET: https://aiops.ygrhash.dev/api/payments
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: grafana/setup-k6-action@v1
+
+      - name: 점진 부하 실행
+        run: k6 run --summary-export summary.json -e PROFILE="$PROFILE" -e TARGET="$TARGET" load-test/ramp.js
+
+      - name: 결과 요약 (실행 기록 화면에 표시)
+        if: always()
+        run: |
+          {
+            echo "## 부하 테스트 결과 (프로필: $PROFILE)"
+            echo ""
+            echo "| 항목 | 값 |"
+            echo "|---|---|"
+            jq -r '"| 총 요청 수 | \(.metrics.http_reqs.count) |",
+                   "| 초당 요청(평균) | \(.metrics.http_reqs.rate) |",
+                   "| 실패율 | \(.metrics.http_req_failed.value) |",
+                   "| p95 응답 시간(ms) | \(.metrics.http_req_duration["p(95)"]) |"' summary.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 원본 결과 파일 저장
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-summary-${{ inputs.profile }}
+          path: summary.json
