@@ -52,7 +52,11 @@ const CONCLUSION_COLOR: Record<string, "success" | "error" | "default"> = {
 };
 
 // 한 페이지 안의 세 패널(SLO / CI / trace)은 서로 독립이라, 하나가 실패해도 나머지는 그대로 보여준다.
-export default function OpsPage() {
+interface OpsPageProps {
+  onChaosStarted?: () => void;
+}
+
+export default function OpsPage({ onChaosStarted }: OpsPageProps) {
   const [slo, setSlo] = useState<Slo | null>(null);
   const [ci, setCi] = useState<{ runs: CiRun[]; error?: string } | null>(null);
   const [traces, setTraces] = useState<TraceSummary[]>([]);
@@ -257,7 +261,7 @@ export default function OpsPage() {
           </Grid>
         </Grid>
 
-        <ChaosPanel />
+        <ChaosPanel onStarted={onChaosStarted} />
 
         <IncidentTimeline />
 

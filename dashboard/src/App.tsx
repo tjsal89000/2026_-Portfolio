@@ -34,7 +34,7 @@ export default function App() {
         }}
       >
         {view === "overview" && <OverviewPage />}
-        {view === "ops" && <OpsPage />}
+        {view === "ops" && <OpsPage onChaosStarted={() => setView("overview")} />}
         {view === "progress" && <ProgressPage />}
         {view === "tests" && <TestsPage />}
         {view === "infra" && <InfraPage />}

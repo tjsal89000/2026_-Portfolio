@@ -25,7 +25,12 @@ const OPS_CHAOS = `${API_ORIGIN}/ws-server/ops/chaos`;
 
 // 버튼은 누구에게나 보이지만, 실행은 비밀번호를 맞춰야 한다. 비밀번호는 입력한 순간 서버로만 보내고
 // 브라우저에는 저장하지 않는다. 서버가 장애 주입을 꺼 둔 상태라면 이 패널은 아무것도 그리지 않는다.
-export default function ChaosPanel() {
+interface ChaosPanelProps {
+  // 주입이 시작되면 호출된다 (예: 실시간 모니터링 화면으로 이동해서 알림·트래픽 변화를 바로 보게 함)
+  onStarted?: () => void;
+}
+
+export default function ChaosPanel({ onStarted }: ChaosPanelProps) {
   const [status, setStatus] = useState<ChaosStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
@@ -68,6 +73,7 @@ export default function ChaosPanel() {
         setMessage(`${json.tps} TPS로 ${json.seconds}초 동안 트래픽을 주입합니다`);
         setStatus((s) => (s ? { ...s, running: true, remainingSeconds: json.seconds } : s));
         close();
+        onStarted?.();
       } else {
         setError(json.reason ?? "실행에 실패했습니다");
       }
