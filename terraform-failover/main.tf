@@ -55,11 +55,25 @@ resource "aws_iam_role_policy" "spot" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["ec2:AssociateAddress", "ec2:DescribeAddresses"]
-      Resource = "*"
-    }]
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ec2:AssociateAddress", "ec2:DescribeAddresses"]
+        Resource = "*"
+      },
+      {
+        # Let's Encrypt DNS-01 인증(인증서 발급/갱신)용 - 이 호스티드 존의 레코드 변경만 허용
+        Effect   = "Allow"
+        Action   = ["route53:ChangeResourceRecordSets"]
+        Resource = ["arn:aws:route53:::hostedzone/Z02079322BLZ8JMG4NAVK"]
+      },
+      {
+        # 리소스 단위 권한이 없는 조회 API라 와일드카드로 줄 수밖에 없다
+        Effect   = "Allow"
+        Action   = ["route53:ListHostedZones", "route53:GetChange"]
+        Resource = "*"
+      }
+    ]
   })
 }
 

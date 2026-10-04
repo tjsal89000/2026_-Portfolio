@@ -52,6 +52,15 @@ resource "aws_security_group" "this" {
     cidr_blocks = [var.allowed_ssh_cidr]
   }
 
+  # HTTPS - 인증서는 nginx가 종료한다
+  ingress {
+    description = "HTTPS (nginx gateway)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # HTTP 기본 포트 - 도메인을 포트 없이 열기 위해 k3s 서비스 로드밸런서가 80번으로 노출
   ingress {
     description = "HTTP (nginx gateway)"
