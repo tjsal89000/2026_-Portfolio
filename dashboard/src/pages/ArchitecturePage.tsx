@@ -1,6 +1,7 @@
 import { Box, Chip, Paper, Tooltip, Toolbar, Typography } from "@mui/material";
 import { TOPOLOGY, type Tech } from "../data/infraTopology";
 import FlowDiagram, { type FlowEdge, type FlowNode } from "../components/FlowDiagram";
+import CloudComparison from "../components/CloudComparison";
 
 const TECH_COLOR: Record<Tech, "warning" | "info" | "success" | "default"> = {
   Java: "warning",
@@ -217,6 +218,7 @@ export default function ArchitecturePage() {
             </Box>
           </Paper>
         </Paper>
+        <CloudComparison />
       </Box>
     </>
   );
