@@ -9,6 +9,7 @@ export interface StageResult {
 
 export interface LoadTestRun {
   profile: "normal" | "high" | "limit";
+  // 같은 프로필을 여러 번 돌릴 수 있으니 date와 함께 키로 쓴다
   date: string; // YYYY-MM-DD
   outcome: "completed" | "aborted";
   totalRequests: number | null;
@@ -29,6 +30,17 @@ export const LOAD_TEST_RUNS: LoadTestRun[] = [
       { tps: 40, p95Ms: 207.5, failRatePct: null },
     ],
     note: "40 TPS까지 전 구간 p95 500ms 기준 통과. 중단 없이 끝까지 실행됨.",
+  },
+  {
+    profile: "limit",
+    date: "2026-10-05",
+    outcome: "aborted",
+    totalRequests: 4873,
+    stages: [
+      { tps: 40, p95Ms: 200.6, failRatePct: null },
+      { tps: 50, p95Ms: 555.3, failRatePct: null },
+    ],
+    note: "50 TPS에서 p95 555ms로 기준 초과, 자동 중단. 50 TPS 구간은 측정 시간이 짧아 재확인 필요. 60·70 TPS는 실행되지 않아 미측정.",
   },
   {
     profile: "high",
