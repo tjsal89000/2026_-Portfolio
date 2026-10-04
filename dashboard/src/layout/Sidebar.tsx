@@ -1,9 +1,7 @@
 import { useEffect, useState, type ReactElement } from "react";
 import DashboardIcon from "@mui/icons-material/DashboardOutlined";
-import TimelineIcon from "@mui/icons-material/TimelineOutlined";
 import NotificationsIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOffOutlined";
-import SummarizeIcon from "@mui/icons-material/SummarizeOutlined";
 import ChecklistIcon from "@mui/icons-material/ChecklistOutlined";
 import DnsIcon from "@mui/icons-material/DnsOutlined";
 import ScienceIcon from "@mui/icons-material/ScienceOutlined";
@@ -38,10 +36,7 @@ const DRAWER_WIDTH = 240;
 // 섹션이라, 이 셋을 눌러도 전부 "개요"로 이동한다 - react-router 없이 App.tsx가 들고 있는
 // view 상태 하나로 전환하는 가벼운 방식 (화면이 지금보다 훨씬 늘어나면 그때 라우터를 붙인다).
 const NAV_ITEMS: { label: string; icon: ReactElement; view: ViewKey }[] = [
-  { label: "개요", icon: <DashboardIcon />, view: "overview" },
-  { label: "실시간 트래픽", icon: <TimelineIcon />, view: "traffic" },
-  { label: "이상탐지 알림", icon: <NotificationsIcon />, view: "alerts" },
-  { label: "AI 리포트", icon: <SummarizeIcon />, view: "reports" },
+  { label: "실시간 모니터링", icon: <DashboardIcon />, view: "overview" },
   { label: "진행 상황", icon: <ChecklistIcon />, view: "progress" },
   { label: "테스트 코드", icon: <ScienceIcon />, view: "tests" },
   { label: "인프라 현황", icon: <DnsIcon />, view: "infra" },
