@@ -127,9 +127,29 @@ export default function OpsPage() {
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
           운영 지표
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          서비스 목표 대비 지금 상태(SLO), 최근 배포 결과(CI), 결제 요청 한 건이 시스템을 지나간 경로(trace)를 한 화면에 모았다.
-        </Typography>
+        <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            이 화면을 만든 이유
+          </Typography>
+          <Typography variant="body2" color="text.secondary" component="div">
+            서비스가 "돌아간다"에서 끝나지 않고, 목표를 지키고 있는지·배포가 안전한지·문제가 생기면 어디서 느려지는지를
+            숫자로 답할 수 있어야 운영 가능한 서비스라고 본다. 그래서 세 가지를 한 화면에 모았다.
+            <Box component="ul" sx={{ pl: 2.5, mt: 1, mb: 0 }}>
+              <li>
+                <b>SLO / 에러 예산</b>: 결제 API 가용성 목표(99.9%)를 정하고, 그 안에서 실패를 얼마나 썼는지 확인한다.
+                목표를 넘기면 새 기능보다 안정화를 우선한다는 기준이 된다.
+              </li>
+              <li>
+                <b>CI 빌드 목록</b>: 코드가 push될 때마다 테스트와 빌드가 통과했는지 기록으로 남긴다.
+                배포 전에 품질을 확인하는 장치가 실제로 돌고 있다는 증거다.
+              </li>
+              <li>
+                <b>결제 요청 추적</b>: 요청 하나가 API → Kafka → DB를 지나는 구간별 시간을 본다.
+                느려졌을 때 "어느 단계가 원인인지"를 평균이 아니라 개별 요청 단위로 찾기 위해 있다.
+              </li>
+            </Box>
+          </Typography>
+        </Paper>
 
         {/* SLO / 에러 예산 */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
