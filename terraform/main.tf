@@ -52,6 +52,15 @@ resource "aws_security_group" "this" {
     cidr_blocks = [var.allowed_ssh_cidr]
   }
 
+  # HTTP 기본 포트 - 도메인을 포트 없이 열기 위해 k3s 서비스 로드밸런서가 80번으로 노출
+  ingress {
+    description = "HTTP (nginx gateway)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # nginx 게이트웨이 (모든 서비스의 단일 진입점) - k8s Service가 NodePort 30080으로 노출
   ingress {
     description = "web dashboard / gateway (nginx NodePort)"

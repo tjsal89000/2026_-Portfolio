@@ -97,13 +97,14 @@ kind: Service
 metadata:
   name: nginx
   namespace: aiops
+# k3s 기본 서비스 로드밸런서(servicelb)가 노드의 80번 포트에 바로 붙여준다 -
+# 도메인을 포트 없이 http://aiops.ygrhash.dev/ 로 열기 위함 (30080 NodePort 대신)
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector: { app: nginx }
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 30080
 ---
 # n8n은 서브패스 프록시가 안 되는 알려진 이슈가 있어(로컬과 동일한 이유) 자기 포트로 직접
 # 접근하게 한다 - 로컬에서 5678 포트로 직접 접근했던 것의 k8s NodePort 버전.
