@@ -19,6 +19,7 @@ import { listEc2Instances, listPods } from "./infra.js";
 import { getRecentPayments } from "./payments.js";
 import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
+import { chaosStatus, startBurst } from "./chaos.js";
 
 const PORT = 8096;
 
@@ -100,6 +101,17 @@ app.get("/ops/timeline", async (_req, res) => {
   } catch (err) {
     res.json({ events: [], error: (err as Error).message });
   }
+});
+
+// 장애 주입은 CHAOS_ENABLED=true일 때만 동작한다. 꺼져 있으면 status만 enabled:false로 응답하고, 대시보드는 버튼을 숨긴다.
+app.get("/ops/chaos/status", (_req, res) => {
+  res.json(chaosStatus());
+});
+
+app.post("/ops/chaos/burst", (req, res) => {
+  const tps = Number(req.query.tps ?? 30);
+  const seconds = Number(req.query.seconds ?? 30);
+  res.json(startBurst(tps, seconds));
 });
 
 app.get("/ops/traces/:id", async (req, res) => {

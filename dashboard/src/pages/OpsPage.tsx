@@ -3,6 +3,7 @@ import { Box, Chip, Grid, List, ListItem, ListItemButton, ListItemText, Paper, T
 import KpiCard from "../components/KpiCard";
 import LoadTestPanel from "../components/LoadTestPanel";
 import IncidentTimeline from "../components/IncidentTimeline";
+import ChaosPanel from "../components/ChaosPanel";
 import { API_ORIGIN } from "../apiOrigin";
 
 interface Slo {
@@ -255,6 +256,8 @@ export default function OpsPage() {
             </Paper>
           </Grid>
         </Grid>
+
+        <ChaosPanel />
 
         <IncidentTimeline />
 
