@@ -63,7 +63,7 @@ export const LOAD_TEST_RUNS: LoadTestRun[] = [
     date: "2026-10-05",
     outcome: "completed",
     totalRequests: 7800,
-    stages: [{ tps: 65, p95Ms: 313.2, failRatePct: null }],
+    stages: [{ tps: 65, p95Ms: 313.2, failRatePct: 0 }],
     note: "65 TPS를 2분 전체 측정. 기준(500ms) 안에서 끝까지 통과. 한계는 65~70 TPS 사이.",
   },
   {

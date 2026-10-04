@@ -45,11 +45,12 @@ jobs:
             echo ""
             echo "| 구간 | p95 응답 시간(ms) | 실패율 |"
             echo "|---|---|---|"
-            jq -r '.metrics | to_entries[]
+            jq -r '.metrics as $m
+                   | $m | to_entries[]
                    | select(.key | test("^http_req_duration\\{stage:"))
-                   | .key as $k
-                   | ($k | capture("stage:(?<s>[^}]+)").s) as $s
-                   | "| \($s) | \(.value["p(95)"]) | \(.metrics["http_req_failed{stage:\($s)}"].value // "-") |"' summary.json || true
+                   | (.key | capture("stage:(?<s>[^}]+)").s) as $s
+                   | ($m["http_req_failed{stage:\($s)}"]) as $f
+                   | "| \($s) | \(.value["p(95)"]) | \(if $f then (($f.value * 100) | tostring) + "%" else "-" end) |"' summary.json || true
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 원본 결과 파일 저장
