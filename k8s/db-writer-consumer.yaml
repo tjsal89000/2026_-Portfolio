@@ -5,6 +5,10 @@ metadata:
   namespace: aiops
 spec:
   replicas: 1
+  # 단일 노드(t3.large)라 CPU 요청이 거의 꽉 차 있어서, 롤링 업데이트가 새 Pod를 먼저 띄우지 못해 멈춘다.
+  # 기존 Pod를 먼저 내리고 새 Pod를 띄운다 - 상태는 Postgres와 Kafka 오프셋에 있어서 잠깐 멈춰도 데이터는 유실되지 않는다.
+  strategy:
+    type: Recreate
   selector:
     matchLabels: { app: db-writer-consumer }
   template:
