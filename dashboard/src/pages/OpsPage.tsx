@@ -3,6 +3,7 @@ import { Box, Chip, Grid, List, ListItem, ListItemButton, ListItemText, Paper, T
 import KpiCard from "../components/KpiCard";
 import LoadTestPanel from "../components/LoadTestPanel";
 import IncidentTimeline from "../components/IncidentTimeline";
+import CostPanel from "../components/CostPanel";
 import ChaosPanel from "../components/ChaosPanel";
 import { API_ORIGIN } from "../apiOrigin";
 
@@ -262,6 +263,8 @@ export default function OpsPage({ onChaosStarted }: OpsPageProps) {
         </Grid>
 
         <ChaosPanel onStarted={onChaosStarted} />
+
+        <CostPanel />
 
         <IncidentTimeline />
 

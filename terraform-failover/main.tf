@@ -78,6 +78,12 @@ resource "aws_iam_role_policy" "spot" {
         Effect   = "Allow"
         Action   = ["ec2:DescribeInstances"]
         Resource = "*"
+      },
+      {
+        # 운영 지표의 비용 패널이 Cost Explorer로 이번 달 비용을 읽는 용도 (조회 전용)
+        Effect   = "Allow"
+        Action   = ["ce:GetCostAndUsage"]
+        Resource = "*"
       }
     ]
   })

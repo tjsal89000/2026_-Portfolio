@@ -19,6 +19,7 @@ import { listEc2Instances, listPods } from "./infra.js";
 import { getRecentPayments } from "./payments.js";
 import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
+import { getCostSummary } from "./cost.js";
 import { checkPassword, chaosStatus, pauseConsumer, startBurst } from "./chaos.js";
 
 const PORT = 8096;
@@ -93,6 +94,15 @@ app.get("/ops/traces", async (_req, res) => {
     res.json({ traces: await getRecentTraces() });
   } catch (err) {
     res.json({ traces: [], error: (err as Error).message });
+  }
+});
+
+// 비용 패널: Cost Explorer 권한이 아직 반영되지 않았거나 집계 전이면 error 메시지로 알려주고 화면은 유지한다
+app.get("/ops/cost", async (_req, res) => {
+  try {
+    res.json(await getCostSummary());
+  } catch (err) {
+    res.json({ error: (err as Error).message });
   }
 });
 

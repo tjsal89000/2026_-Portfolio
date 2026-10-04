@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-cost-explorer": "^3.1146.0",
     "@aws-sdk/client-ec2": "^3.700.0",
     "@kubernetes/client-node": "^0.22.3",
     "express": "^4.21.2",
