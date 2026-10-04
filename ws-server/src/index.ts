@@ -17,6 +17,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { getLatestReports } from "./reports.js";
 import { listEc2Instances, listPods } from "./infra.js";
 import { getRecentPayments } from "./payments.js";
+import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 
 const PORT = 8096;
 
@@ -63,6 +64,40 @@ app.get("/infra/pods", async (_req, res) => {
     res.json({ pods: await listPods() });
   } catch (err) {
     res.json({ pods: [], error: (err as Error).message });
+  }
+});
+
+// "운영 지표" 페이지: SLO(Prometheus), CI 상태(GitHub Actions), 결제 trace(Tempo).
+// 세 곳 중 하나가 죽어 있어도 나머지는 보여야 하니, 각 라우트가 독립적으로 실패를 흡수한다.
+app.get("/ops/slo", async (_req, res) => {
+  try {
+    res.json(await getSlo());
+  } catch (err) {
+    res.json({ error: (err as Error).message });
+  }
+});
+
+app.get("/ops/ci", async (_req, res) => {
+  try {
+    res.json({ runs: await getCiRuns() });
+  } catch (err) {
+    res.json({ runs: [], error: (err as Error).message });
+  }
+});
+
+app.get("/ops/traces", async (_req, res) => {
+  try {
+    res.json({ traces: await getRecentTraces() });
+  } catch (err) {
+    res.json({ traces: [], error: (err as Error).message });
+  }
+});
+
+app.get("/ops/traces/:id", async (req, res) => {
+  try {
+    res.json({ spans: await getTrace(req.params.id) });
+  } catch (err) {
+    res.json({ spans: [], error: (err as Error).message });
   }
 });
 

@@ -72,6 +72,12 @@ resource "aws_iam_role_policy" "spot" {
         Effect   = "Allow"
         Action   = ["route53:ListHostedZones", "route53:GetChange"]
         Resource = "*"
+      },
+      {
+        # 인프라 현황 페이지가 EC2 목록을 조회하는 용도 (기존 terraform/의 ec2-describe-only와 동일 범위)
+        Effect   = "Allow"
+        Action   = ["ec2:DescribeInstances"]
+        Resource = "*"
       }
     ]
   })

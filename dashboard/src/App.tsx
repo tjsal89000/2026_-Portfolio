@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import Sidebar, { DRAWER_WIDTH } from "./layout/Sidebar";
 import TopBar from "./layout/TopBar";
 import OverviewPage from "./pages/OverviewPage";
+import OpsPage from "./pages/OpsPage";
 import ProgressPage from "./pages/ProgressPage";
 import InfraPage from "./pages/InfraPage";
 import TestsPage from "./pages/TestsPage";
@@ -33,6 +34,7 @@ export default function App() {
         }}
       >
         {view === "overview" && <OverviewPage />}
+        {view === "ops" && <OpsPage />}
         {view === "progress" && <ProgressPage />}
         {view === "tests" && <TestsPage />}
         {view === "infra" && <InfraPage />}
