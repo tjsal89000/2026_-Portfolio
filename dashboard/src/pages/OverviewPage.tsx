@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Box, Chip, Grid, List, ListItem, ListItemText, Paper, Toolbar, Typography } from "@mui/material";
+import { useCallback, useEffect, useState } from "react";
+import { Box, Button, Chip, CircularProgress, Grid, List, ListItem, ListItemText, Paper, Toolbar, Typography } from "@mui/material";
 import KpiCard from "../components/KpiCard";
 import TrafficSparkline from "../components/TrafficSparkline";
 import { useLiveFeed } from "../hooks/useLiveFeed";
@@ -46,21 +46,46 @@ export default function OverviewPage() {
     return () => clearInterval(id);
   }, []);
 
-  // AI 리포트(Phase 8)는 주기적으로만 새로 생기므로, 실시간 WebSocket이 아니라 가벼운 폴링으로 충분하다.
+  // AI 리포트는 주기적으로만 새로 생기므로 실시간 WebSocket이 아니라 가벼운 폴링으로 충분하다.
+  const fetchReports = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_ORIGIN}/ws-server/reports/latest?limit=1`);
+      const json = await res.json();
+      setReports(Array.isArray(json) ? json : []);
+    } catch {
+      // ws-server가 아직 안 떠있어도 대시보드 자체는 계속 보여야 하므로 조용히 무시
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const res = await fetch(`${API_ORIGIN}/ws-server/reports/latest?limit=1`);
-        const json = await res.json();
-        setReports(Array.isArray(json) ? json : []);
-      } catch {
-        // ws-server가 아직 안 떠있어도 대시보드 자체는 계속 보여야 하므로 조용히 무시
-      }
-    };
     fetchReports();
     const id = setInterval(fetchReports, 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [fetchReports]);
+
+  // 리포트 생성은 Gemini를 여러 번 호출해서 보통 수십 초~1분 걸린다. 연타로 호출이 쌓이지 않게
+  // 생성 중에는 버튼을 막고, 끝나면 1분 동안 다시 누르지 못하게 한다.
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [cooling, setCooling] = useState(false);
+
+  const generateReport = async () => {
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const res = await fetch(`${API_ORIGIN}/report/generate`, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchReports();
+    } catch {
+      setGenerateError("리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setGenerating(false);
+      setCooling(true);
+      setTimeout(() => setCooling(false), 60_000);
+    }
+  };
+
+  const canGenerate = !generating && !cooling;
 
   const latestReport = reports[0];
 
@@ -236,10 +261,29 @@ export default function OverviewPage() {
           {/* AI 분석 리포트 */}
           <Grid size={{ xs: 12 }}>
             <Paper variant="outlined" sx={{ p: 3 }}>
-              <Typography variant="h6">AI 분석 리포트</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                LLM(Gemini)이 MCP 도구로 Kafka·Redis·Postgres 데이터를 직접 조회해서 작성한 운영 리포트
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 1 }}>
+                <Box>
+                  <Typography variant="h6">AI 분석 리포트</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    LLM(Gemini)이 MCP 도구로 Kafka·Redis·Postgres 데이터를 직접 조회해서 작성한 운영 리포트
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={generateReport}
+                  disabled={!canGenerate}
+                  startIcon={generating ? <CircularProgress size={14} /> : undefined}
+                  sx={{ flexShrink: 0 }}
+                >
+                  {generating ? "생성 중 (최대 1분)" : "리포트 생성"}
+                </Button>
+              </Box>
+              {generateError && (
+                <Typography variant="body2" color="error" sx={{ mb: 1 }}>
+                  {generateError}
+                </Typography>
+              )}
               {latestReport ? (
                 <>
                   <Typography variant="caption" color="text.secondary">
@@ -251,7 +295,7 @@ export default function OverviewPage() {
                 </>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  아직 생성된 리포트가 없습니다. 리포트 에이전트가 호출되면 여기에 표시됩니다.
+                  아직 생성된 리포트가 없습니다. "리포트 생성"을 누르면 지금 데이터 기준으로 바로 만들어집니다.
                 </Typography>
               )}
             </Paper>
