@@ -98,10 +98,65 @@ export default function OverviewPage() {
 
   const latestReport = reports[0];
 
+  // 각 단계의 상태는 화면에 실제로 들어오는 데이터로만 판단한다 - 확인할 수 없는 단계는 "확인 중"으로 둔다
+  const pipeline: { label: string; status: string; color: "success" | "warning" | "error" | "default" }[] = [
+    {
+      label: "결제 수신",
+      status: currentTps > 0 ? `수신 중 · ${currentTps.toFixed(1)} TPS` : "대기 중",
+      color: currentTps > 0 ? "success" : "default",
+    },
+    {
+      label: "Kafka → DB 저장",
+      status:
+        kafkaLag === null
+          ? "확인 중"
+          : kafkaLag <= 100
+            ? `정상 · Lag ${kafkaLag}`
+            : `밀림 · Lag ${kafkaLag}`,
+      color: kafkaLag === null ? "default" : kafkaLag <= 100 ? "success" : "warning",
+    },
+    {
+      label: "이상탐지",
+      status: activeAlerts > 0 ? `최근 5분 알림 ${activeAlerts}건` : "감시 중",
+      color: activeAlerts > 0 ? "warning" : "success",
+    },
+    {
+      label: "AI 리포트",
+      status: latestReport ? `생성됨 · ${new Date(latestReport.generated_at).toLocaleTimeString()}` : "대기 중",
+      color: latestReport ? "success" : "default",
+    },
+    {
+      label: "실시간 연결",
+      status: connected ? "연결됨" : "끊김",
+      color: connected ? "success" : "error",
+    },
+  ];
+
   return (
     <>
       <Toolbar />
       <Box sx={{ p: 3 }}>
+        <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            결제 플랫폼의 실시간 운영 현황
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            가상의 결제 트래픽을 생성해 Kafka → Postgres/Redis → 이상탐지 → 알림 → AI 리포트까지 이어지는 흐름을
+            실제로 돌리고, 그 결과를 여기서 보여준다. 아래 점검 바에서 각 단계가 지금 동작하는지 바로 확인할 수 있다.
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {pipeline.map((step) => (
+              <Chip
+                key={step.label}
+                size="small"
+                color={step.color}
+                variant="outlined"
+                label={`${step.label}: ${step.status}`}
+              />
+            ))}
+          </Box>
+        </Paper>
+
         <Grid container spacing={2} sx={{ mb: 3 }}>
           {kpis.map((kpi) => (
             <Grid key={kpi.label} size={{ xs: 12, sm: 6, md: 3 }}>
@@ -115,7 +170,12 @@ export default function OverviewPage() {
           <Grid size={{ xs: 12, md: 8 }}>
             <Paper variant="outlined" sx={{ p: 3, height: 480, display: "flex", flexDirection: "column" }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                <Typography variant="h6">실시간 트래픽 플로우</Typography>
+                <Box>
+                  <Typography variant="h6">실시간 트래픽 플로우</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    결제 요청이 들어오는 속도(TPS)와 최근 결제 내역
+                  </Typography>
+                </Box>
                 <Chip
                   size="small"
                   label={connected ? "연결됨" : "연결 안 됨"}
@@ -151,13 +211,14 @@ export default function OverviewPage() {
           {/* 이상탐지 알림 타임라인 */}
           <Grid size={{ xs: 12, md: 4 }}>
             <Paper variant="outlined" sx={{ p: 3, height: 480, overflow: "auto" }}>
-              <Typography variant="h6" gutterBottom>
-                이상탐지 알림
+              <Typography variant="h6">이상탐지 알림</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                고액 결제·같은 계좌 반복 요청·특정 국가/결제수단 쏠림 패턴을 감지하면 여기 쌓인다
               </Typography>
               <List dense>
                 {alerts.length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>
-                    최근 알림 없음
+                    감시 중 · 이상 패턴이 감지되면 여기에 표시됩니다
                   </Typography>
                 )}
                 {alerts.map((a) => (
@@ -180,8 +241,9 @@ export default function OverviewPage() {
           {/* AI 분석 리포트 */}
           <Grid size={{ xs: 12 }}>
             <Paper variant="outlined" sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                AI 분석 리포트
+              <Typography variant="h6">AI 분석 리포트</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                LLM(Gemini)이 MCP 도구로 Kafka·Redis·Postgres 데이터를 직접 조회해서 작성한 운영 리포트
               </Typography>
               {latestReport ? (
                 <>
