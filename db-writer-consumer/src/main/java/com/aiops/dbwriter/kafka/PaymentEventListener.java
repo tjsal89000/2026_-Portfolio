@@ -25,8 +25,14 @@ public class PaymentEventListener {
         this.metrics = metrics;
     }
 
-    // id는 ConsumerPauseService가 이 리스너를 찾아 멈추고 재개할 때 쓴다 (시연용 소비 지연 주입)
-    @KafkaListener(id = ConsumerPauseService.LISTENER_ID, topics = "${payment.topic}", containerFactory = "kafkaListenerContainerFactory")
+    // id는 ConsumerPauseService가 이 리스너를 찾아 멈추고 재개할 때 쓴다 (시연용 소비 지연 주입).
+    // id를 주면 Spring Kafka가 group.id 기본값으로도 id를 쓰기 때문에, groupId를 반드시 같이 지정한다.
+    // 빠뜨리면 컨슈머가 새 그룹에 붙어 offset을 처음부터(earliest) 다시 읽는다.
+    @KafkaListener(
+            id = ConsumerPauseService.LISTENER_ID,
+            groupId = "${spring.kafka.consumer.group-id}",
+            topics = "${payment.topic}",
+            containerFactory = "kafkaListenerContainerFactory")
     public void onMessage(PaymentEvent event, Acknowledgment ack) {
         try {
             Payment payment = new Payment(
