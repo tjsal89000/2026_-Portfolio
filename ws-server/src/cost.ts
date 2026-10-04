@@ -16,25 +16,53 @@ let cache: { at: number; value: CostSummary } | null = null;
 
 export interface DailyCost {
   date: string; // YYYY-MM-DD
-  amount: number;
+  amount: number; // USD
+  krw: number;
 }
 
 export interface CostSummary {
   currency: string;
-  monthToDate: number;
+  monthToDate: number; // USD
+  monthToDateKrw: number;
+  krwRate: number; // 1 USD = ? KRW
+  rateSource: string;
   days: DailyCost[];
   fetchedAt: string;
+}
+
+// 환율은 공개 API에서 하루 단위로 갱신되는 값을 쓴다. 키가 필요 없고, 실패하면 고정 환율로 대체한다.
+const FX_URL = "https://open.er-api.com/v6/latest/USD";
+const FALLBACK_KRW = Number(process.env.USD_KRW_FALLBACK ?? 1400);
+let fxCache: { at: number; rate: number; source: string } | null = null;
+
+export async function getUsdKrwRate(now: number = Date.now()): Promise<{ rate: number; source: string }> {
+  if (fxCache && now - fxCache.at < CACHE_MS) return { rate: fxCache.rate, source: fxCache.source };
+  try {
+    const res = await fetch(FX_URL);
+    if (!res.ok) throw new Error(`FX ${res.status}`);
+    const json = (await res.json()) as { rates?: Record<string, number> };
+    const rate = json.rates?.KRW;
+    if (!rate || !Number.isFinite(rate)) throw new Error("KRW 환율 없음");
+    fxCache = { at: now, rate, source: "open.er-api.com" };
+  } catch {
+    fxCache = { at: now, rate: FALLBACK_KRW, source: "고정 환율(대체값)" };
+  }
+  return { rate: fxCache.rate, source: fxCache.source };
+}
+
+export function toKrw(amountUsd: number, rate: number): number {
+  return Math.round(amountUsd * rate);
 }
 
 function toDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function parseDailyCosts(results: ResultByTime[] | undefined): DailyCost[] {
-  return (results ?? []).map((r) => ({
-    date: r.TimePeriod?.Start ?? "",
-    amount: Number(r.Total?.UnblendedCost?.Amount ?? 0),
-  }));
+export function parseDailyCosts(results: ResultByTime[] | undefined, rate = 1): DailyCost[] {
+  return (results ?? []).map((r) => {
+    const amount = Number(r.Total?.UnblendedCost?.Amount ?? 0);
+    return { date: r.TimePeriod?.Start ?? "", amount, krw: toKrw(amount, rate) };
+  });
 }
 
 export function parseMonthTotal(results: ResultByTime[] | undefined): number {
@@ -66,10 +94,15 @@ export async function getCostSummary(now: Date = new Date()): Promise<CostSummar
     ),
   ]);
 
+  const { rate, source } = await getUsdKrwRate(now.getTime());
+  const monthToDate = parseMonthTotal(monthly.ResultsByTime);
   const value: CostSummary = {
     currency: daily.ResultsByTime?.[0]?.Total?.UnblendedCost?.Unit ?? "USD",
-    monthToDate: parseMonthTotal(monthly.ResultsByTime),
-    days: parseDailyCosts(daily.ResultsByTime),
+    monthToDate,
+    monthToDateKrw: toKrw(monthToDate, rate),
+    krwRate: rate,
+    rateSource: source,
+    days: parseDailyCosts(daily.ResultsByTime, rate),
     fetchedAt: new Date(now).toISOString(),
   };
   cache = { at: now.getTime(), value };
