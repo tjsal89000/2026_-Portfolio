@@ -27,7 +27,12 @@ const PROFILES = {
   normal: [5, 10, 20, 40],
   high: [5, 20, 40, 80],
   limit: [40, 50, 60, 70],
+  // 50 TPS 한 구간만 끝까지 재는 확인용. 중단 기준을 끄고 2분을 다 채워서 p95를 정확히 본다
+  confirm50: [50],
 };
+
+// confirm50은 확인용이라 중간에 멈추지 않는다. 나머지 프로필은 기준을 넘으면 자동 중단.
+const ABORT_ON_FAIL = PROFILE !== "confirm50";
 
 const steps = PROFILES[PROFILE];
 if (!steps) {
@@ -52,10 +57,10 @@ steps.forEach((tps, i) => {
     tags: { stage },
   };
   thresholds[`http_req_duration{stage:${stage}}`] = [
-    { threshold: "p(95)<500", abortOnFail: true, delayAbortEval: "30s" },
+    { threshold: "p(95)<500", abortOnFail: ABORT_ON_FAIL, delayAbortEval: "30s" },
   ];
   thresholds[`http_req_failed{stage:${stage}}`] = [
-    { threshold: "rate<0.01", abortOnFail: true, delayAbortEval: "30s" },
+    { threshold: "rate<0.01", abortOnFail: ABORT_ON_FAIL, delayAbortEval: "30s" },
   ];
 });
 
