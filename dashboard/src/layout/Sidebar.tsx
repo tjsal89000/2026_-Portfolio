@@ -39,9 +39,9 @@ const DRAWER_WIDTH = 240;
 // view 상태 하나로 전환하는 가벼운 방식 (화면이 지금보다 훨씬 늘어나면 그때 라우터를 붙인다).
 const NAV_ITEMS: { label: string; icon: ReactElement; view: ViewKey }[] = [
   { label: "개요", icon: <DashboardIcon />, view: "overview" },
-  { label: "실시간 트래픽", icon: <TimelineIcon />, view: "overview" },
-  { label: "이상탐지 알림", icon: <NotificationsIcon />, view: "overview" },
-  { label: "AI 리포트", icon: <SummarizeIcon />, view: "overview" },
+  { label: "실시간 트래픽", icon: <TimelineIcon />, view: "traffic" },
+  { label: "이상탐지 알림", icon: <NotificationsIcon />, view: "alerts" },
+  { label: "AI 리포트", icon: <SummarizeIcon />, view: "reports" },
   { label: "진행 상황", icon: <ChecklistIcon />, view: "progress" },
   { label: "테스트 코드", icon: <ScienceIcon />, view: "tests" },
   { label: "인프라 현황", icon: <DnsIcon />, view: "infra" },
