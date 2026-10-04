@@ -34,12 +34,22 @@ jobs:
           {
             echo "## 부하 테스트 결과 (프로필: $PROFILE)"
             echo ""
+            echo "### 전체"
+            echo ""
             echo "| 항목 | 값 |"
             echo "|---|---|"
             jq -r '"| 총 요청 수 | \(.metrics.http_reqs.count) |",
-                   "| 초당 요청(평균) | \(.metrics.http_reqs.rate) |",
-                   "| 실패율 | \(.metrics.http_req_failed.value) |",
-                   "| p95 응답 시간(ms) | \(.metrics.http_req_duration["p(95)"]) |"' summary.json
+                   "| 초당 요청(평균) | \(.metrics.http_reqs.rate) |"' summary.json
+            echo ""
+            echo "### 단계별 (TPS 구간마다 따로 측정)"
+            echo ""
+            echo "| 구간 | p95 응답 시간(ms) | 실패율 |"
+            echo "|---|---|---|"
+            jq -r '.metrics | to_entries[]
+                   | select(.key | test("^http_req_duration\\{stage:"))
+                   | .key as $k
+                   | ($k | capture("stage:(?<s>[^}]+)").s) as $s
+                   | "| \($s) | \(.value["p(95)"]) | \(.metrics["http_req_failed{stage:\($s)}"].value // "-") |"' summary.json || true
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 원본 결과 파일 저장
