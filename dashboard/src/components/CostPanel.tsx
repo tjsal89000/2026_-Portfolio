@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Grid, Paper, Typography } from "@mui/material";
+import { Alert, Box, Chip, Grid, Paper, Typography } from "@mui/material";
 import KpiCard from "./KpiCard";
 import { API_ORIGIN } from "../apiOrigin";
 
@@ -57,21 +57,28 @@ export default function CostPanel() {
 
       {data && !data.error && (
         <>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 2 }}>
+            <Chip size="small" variant="outlined" label={`적용 환율  $1 = ${krwFormat(data.krwRate).replace("₩", "")}원`} />
+            <Typography variant="caption" color="text.secondary">
+              환율 출처: {data.rateSource}
+            </Typography>
+          </Box>
+
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <KpiCard
-                label="이번 달 누적 (원)"
-                value={krwFormat(data.monthToDateKrw)}
+                label="이번 달 누적"
+                value={`${krwFormat(data.monthToDateKrw)} / $${data.monthToDate.toFixed(2)}`}
                 accent="primary"
-                description={`이번 달 1일부터 집계된 AWS 비용. 약 $${data.monthToDate.toFixed(2)}를 환율 ${data.krwRate.toFixed(0)}원/$로 환산 (환율 출처: ${data.rateSource})`}
+                description="이번 달 1일부터 집계된 AWS 비용. 원화는 위의 적용 환율로 환산한 값이다."
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <KpiCard
-                label="최근 집계일 비용 (원)"
-                value={last ? krwFormat(last.krw) : "-"}
+                label="최근 집계일 비용"
+                value={last ? `${krwFormat(last.krw)} / $${last.amount.toFixed(3)}` : "-"}
                 accent="success"
-                description={last ? `${last.date} 하루 비용 (집계 기준), 약 $${last.amount.toFixed(3)}` : "집계된 날짜가 없습니다"}
+                description={last ? `${last.date} 하루 비용 (집계 기준)` : "집계된 날짜가 없습니다"}
               />
             </Grid>
           </Grid>
