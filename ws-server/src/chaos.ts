@@ -10,11 +10,39 @@
  * 켜는 방법: k8s/ws-server.yaml의 CHAOS_ENABLED를 "true"로 바꾸고 apply. 면접이 끝나면 다시 "false".
  */
 
+import { createHash, timingSafeEqual } from "node:crypto";
+
 const ENABLED = process.env.CHAOS_ENABLED === "true";
+// 비밀번호는 코드에 두지 않는다. k8s Secret(chaos-secrets)에서 환경변수로만 받는다.
+const PASSWORD = process.env.CHAOS_PASSWORD ?? "";
 const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://gateway:8095/api/payments";
 
 export const MAX_TPS = 100;
 export const MAX_SECONDS = 60;
+
+// 무작위 대입을 막기 위해, 10분 안에 틀린 입력이 5번 쌓이면 그 기간 동안 맞는 비밀번호도 거부한다.
+const LOCK_WINDOW_MS = 10 * 60_000;
+const MAX_FAILURES = 5;
+let failureTimes: number[] = [];
+
+export type PasswordCheck = "ok" | "wrong" | "locked" | "disabled";
+
+// 입력과 비밀번호를 SHA-256 해시로 바꿔서 비교한다. 해시 길이가 같아서 timingSafeEqual을 쓸 수 있고,
+// 어느 글자에서 틀렸는지 응답 시간으로 새는 것을 막는다.
+export function checkPassword(input: unknown): PasswordCheck {
+  if (!ENABLED || PASSWORD === "") return "disabled";
+
+  const now = Date.now();
+  failureTimes = failureTimes.filter((t) => now - t < LOCK_WINDOW_MS);
+  if (failureTimes.length >= MAX_FAILURES) return "locked";
+
+  const given = createHash("sha256").update(String(input ?? "")).digest();
+  const expected = createHash("sha256").update(PASSWORD).digest();
+  if (timingSafeEqual(given, expected)) return "ok";
+
+  failureTimes.push(now);
+  return "wrong";
+}
 
 // 입력이 이상하거나 너무 크면 조용히 허용 범위 안으로 줄인다 (에러로 멈추지 않고 실제로 걸리는 값을 알려준다)
 export function clampBurst(tps: number, seconds: number): { tps: number; seconds: number } {
@@ -48,7 +76,9 @@ let current: { endsAt: number; timer: ReturnType<typeof setInterval>; stopTimer:
 export function chaosStatus() {
   const running = current !== null && current.endsAt > Date.now();
   return {
-    enabled: ENABLED,
+    // 비밀번호까지 설정돼 있어야 실제로 실행 가능하다. 화면에는 "비밀번호 필요" 여부만 알려준다.
+    enabled: ENABLED && PASSWORD !== "",
+    requiresPassword: true,
     running,
     remainingSeconds: running ? Math.ceil((current!.endsAt - Date.now()) / 1000) : 0,
     maxTps: MAX_TPS,

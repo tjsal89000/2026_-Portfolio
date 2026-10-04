@@ -56,9 +56,16 @@ spec:
               value: "redis"
             - name: REDIS_PORT
               value: "6379"
-            # 장애 주입 시연 스위치. 기본은 꺼짐. 면접 때만 "true"로 바꿔 apply하고, 끝나면 다시 "false".
+            # 장애 주입: 대시보드 버튼은 공개되지만 실행에는 비밀번호가 필요하다.
+            # 비밀번호는 Secret chaos-secrets(키 CHAOS_PASSWORD)에서만 읽는다. Secret이 없으면 기능만 꺼진다.
             - name: CHAOS_ENABLED
-              value: "false"
+              value: "true"
+            - name: CHAOS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chaos-secrets
+                  key: CHAOS_PASSWORD
+                  optional: true
             - name: POSTGRES_HOST
               value: "postgres"
             - name: POSTGRES_PORT

@@ -19,11 +19,12 @@ import { listEc2Instances, listPods } from "./infra.js";
 import { getRecentPayments } from "./payments.js";
 import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
-import { chaosStatus, startBurst } from "./chaos.js";
+import { checkPassword, chaosStatus, startBurst } from "./chaos.js";
 
 const PORT = 8096;
 
 const app = express();
+app.use(express.json());
 
 // 다른 세 엔드포인트와 달리 이 라우트만 try/catch가 없었던 게 실제 장애로 드러났다 - Postgres가
 // 잠깐 죽었을 때 getLatestReports()가 던진 예외가 처리되지 않은 Promise 거부로 남아
@@ -108,10 +109,20 @@ app.get("/ops/chaos/status", (_req, res) => {
   res.json(chaosStatus());
 });
 
+// 공개 대시보드에서 누구나 버튼은 보지만, 실행은 비밀번호가 맞아야 한다. 비밀번호는 본문(JSON)으로만 받는다
+// (URL에 넣으면 nginx 접근 로그에 그대로 남기 때문).
 app.post("/ops/chaos/burst", (req, res) => {
-  const tps = Number(req.query.tps ?? 30);
-  const seconds = Number(req.query.seconds ?? 30);
-  res.json(startBurst(tps, seconds));
+  const check = checkPassword(req.body?.password);
+  if (check === "disabled") {
+    return res.status(404).json({ started: false, reason: "장애 주입이 꺼져 있습니다" });
+  }
+  if (check === "locked") {
+    return res.status(429).json({ started: false, reason: "틀린 입력이 많아 10분간 잠겼습니다. 잠시 후 다시 시도해 주세요" });
+  }
+  if (check === "wrong") {
+    return res.status(403).json({ started: false, reason: "비밀번호가 맞지 않습니다" });
+  }
+  res.json(startBurst(Number(req.body?.tps ?? 30), Number(req.body?.seconds ?? 30)));
 });
 
 app.get("/ops/traces/:id", async (req, res) => {

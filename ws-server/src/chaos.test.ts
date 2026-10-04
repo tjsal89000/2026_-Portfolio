@@ -1,5 +1,41 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_SECONDS, MAX_TPS, clampBurst } from "./chaos.js";
+
+// 환경변수는 모듈을 불러올 때 한 번 읽히므로, 케이스마다 모듈을 새로 불러온다
+async function loadWith(enabled: string, password: string) {
+  vi.stubEnv("CHAOS_ENABLED", enabled);
+  vi.stubEnv("CHAOS_PASSWORD", password);
+  vi.resetModules();
+  return import("./chaos.js");
+}
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe("checkPassword", () => {
+  it("비밀번호가 설정되지 않으면 기능 자체가 꺼진 것으로 본다", async () => {
+    const mod = await loadWith("true", "");
+    expect(mod.checkPassword("아무거나")).toBe("disabled");
+  });
+
+  it("맞는 비밀번호는 ok, 틀리면 wrong", async () => {
+    const mod = await loadWith("true", "s3cret-test");
+    expect(mod.checkPassword("s3cret-test")).toBe("ok");
+    expect(mod.checkPassword("wrong-one")).toBe("wrong");
+  });
+
+  it("틀린 입력이 5번 쌓이면 맞는 비밀번호도 잠겨서 거부한다", async () => {
+    const mod = await loadWith("true", "s3cret-test");
+    for (let i = 0; i < 5; i++) mod.checkPassword("nope");
+    expect(mod.checkPassword("s3cret-test")).toBe("locked");
+  });
+
+  it("CHAOS_ENABLED가 꺼져 있으면 비밀번호가 맞아도 disabled", async () => {
+    const mod = await loadWith("false", "s3cret-test");
+    expect(mod.checkPassword("s3cret-test")).toBe("disabled");
+  });
+});
 
 describe("clampBurst", () => {
   it("허용 범위 안의 값은 그대로 쓴다", () => {
