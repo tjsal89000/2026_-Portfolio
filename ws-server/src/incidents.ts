@@ -55,7 +55,8 @@ interface TimelineRow {
 export function mapTimelineRow(row: TimelineRow): TimelineEvent {
   return {
     kind: row.kind,
-    title: row.title,
+    // 리포트 첫 줄은 마크다운 제목(## ...)이라 기호를 떼고 글자만 쓴다
+    title: row.title.replace(/^#+\s*/, ""),
     detail: row.detail ?? "",
     at: new Date(row.at).toISOString(),
   };
