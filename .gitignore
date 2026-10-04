@@ -32,3 +32,5 @@ terraform/*.pem
 # OS/에디터
 .DS_Store
 Thumbs.db
+
+docs/private/
