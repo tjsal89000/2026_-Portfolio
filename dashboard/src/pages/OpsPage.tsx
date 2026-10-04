@@ -4,7 +4,6 @@ import KpiCard from "../components/KpiCard";
 import LoadTestPanel from "../components/LoadTestPanel";
 import IncidentTimeline from "../components/IncidentTimeline";
 import CostPanel from "../components/CostPanel";
-import ChaosPanel from "../components/ChaosPanel";
 import { API_ORIGIN } from "../apiOrigin";
 
 interface Slo {
@@ -53,11 +52,7 @@ const CONCLUSION_COLOR: Record<string, "success" | "error" | "default"> = {
 };
 
 // 한 페이지 안의 세 패널(SLO / CI / trace)은 서로 독립이라, 하나가 실패해도 나머지는 그대로 보여준다.
-interface OpsPageProps {
-  onChaosStarted?: () => void;
-}
-
-export default function OpsPage({ onChaosStarted }: OpsPageProps) {
+export default function OpsPage() {
   const [slo, setSlo] = useState<Slo | null>(null);
   const [ci, setCi] = useState<{ runs: CiRun[]; error?: string } | null>(null);
   const [traces, setTraces] = useState<TraceSummary[]>([]);
@@ -261,8 +256,6 @@ export default function OpsPage({ onChaosStarted }: OpsPageProps) {
             </Paper>
           </Grid>
         </Grid>
-
-        <ChaosPanel onStarted={onChaosStarted} />
 
         <CostPanel />
 

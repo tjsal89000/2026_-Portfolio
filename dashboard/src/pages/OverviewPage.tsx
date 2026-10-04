@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Box, Button, Chip, CircularProgress, Grid, List, ListItem, ListItemText, Paper, Toolbar, Typography } from "@mui/material";
 import KpiCard from "../components/KpiCard";
+import ChaosControls from "../components/ChaosControls";
 import TrafficSparkline from "../components/TrafficSparkline";
 import { useLiveFeed } from "../hooks/useLiveFeed";
 import { API_ORIGIN } from "../apiOrigin";
@@ -176,6 +177,8 @@ export default function OverviewPage() {
             ))}
           </Box>
         </Paper>
+
+        <ChaosControls />
 
         <Grid container spacing={2} sx={{ mb: 3 }}>
           {kpis.map((kpi) => (
