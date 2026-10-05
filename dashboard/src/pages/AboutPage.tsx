@@ -86,7 +86,7 @@ export default function AboutPage() {
       <Box sx={{ p: 3, maxWidth: 1100 }}>
         <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-            AIOps 결제 플랫폼
+            결제 AIOps 관제
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
             가상의 결제 서비스에 트래픽을 흘려보내고, 이상 징후를 자동으로 찾아 알리고, AI가 운영 리포트를 쓰고, 그 과정을

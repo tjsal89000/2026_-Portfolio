@@ -110,7 +110,7 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onMobileClose }:
     <>
       <Toolbar>
         <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
-          AIOps 결제 플랫폼
+          결제 AIOps 관제
         </Typography>
       </Toolbar>
       <List sx={{ px: 1 }}>
