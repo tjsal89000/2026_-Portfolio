@@ -39,6 +39,8 @@ async def test_켜져있으면_n8n_웹훅으로_타입과_상세를_담아_보�
     assert args[0] == alerts.N8N_WEBHOOK_URL
     assert kwargs["json"]["type"] == "TPS_급증"
     assert kwargs["json"]["detail"] == {"현재TPS": 10}
+    # 공개 웹훅 보호: 비밀 헤더가 함께 전송되어야 한다
+    assert kwargs["headers"]["x-alert-secret"] == alerts.N8N_WEBHOOK_SECRET
 
 
 @pytest.mark.asyncio

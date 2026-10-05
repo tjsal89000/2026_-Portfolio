@@ -40,6 +40,12 @@ spec:
               value: "https://n8n.ygrhash.dev/"
             - name: N8N_WEBHOOK_URL
               value: "https://n8n.ygrhash.dev/"
+            # 웹훅 보호: 워크플로우의 코드 노드가 이 값과 요청 헤더(x-alert-secret)를 비교한다
+            - name: ALERT_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: alert-webhook-secret
+                  key: ALERT_WEBHOOK_SECRET
             # 힙 상한을 컨테이너 메모리 한도 안쪽으로 맞춘다 (기본값으로 두면 시작 중 OOM으로 재시작 반복)
             - name: NODE_OPTIONS
               value: "--max-old-space-size=768"

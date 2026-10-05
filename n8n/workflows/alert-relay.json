@@ -17,10 +17,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// 이상탐지 알림이 n8n을 거쳐 왔다는 표시를 붙인다 (대시보드의 'n8n 경유' 칩에 쓰인다)\nconst body = $input.first().json.body ?? {};\nreturn [{ json: { ...body, via: 'n8n' } }];"
+        "jsCode": "// 1) 웹훅 보호: 공개 주소라서 비밀 헤더(x-alert-secret)가 맞지 않으면 중계하지 않는다\n// 비밀값은 워크플로우 파일에 두지 않고, n8n 환경변수(Secret alert-webhook-secret)에서 읽는다\nconst input = $input.first().json;\nconst expected = $env.ALERT_WEBHOOK_SECRET;\nconst given = (input.headers ?? {})['x-alert-secret'];\nif (!expected || given !== expected) {\n  throw new Error('웹훅 인증 실패: 비밀 헤더가 없거나 맞지 않습니다');\n}\n// 2) 이상탐지 알림이 n8n을 거쳐 왔다는 표시를 붙인다 (대시보드의 'n8n 경유' 칩에 쓰인다)\nconst body = input.body ?? {};\nreturn [{ json: { ...body, via: 'n8n' } }];"
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000004",
-      "name": "n8n 경유 표시",
+      "name": "웹훅 검사와 n8n 경유 표시",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [240, 0]
@@ -46,14 +46,14 @@
       "main": [
         [
           {
-            "node": "n8n 경유 표시",
+            "node": "웹훅 검사와 n8n 경유 표시",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "n8n 경유 표시": {
+    "웹훅 검사와 n8n 경유 표시": {
       "main": [
         [
           {

@@ -26,6 +26,12 @@ spec:
               value: "kafka:9092"
             - name: N8N_WEBHOOK_URL
               value: "http://n8n:5678/webhook/payment-anomaly"
+            # n8n 웹훅 보호용 비밀 헤더 값 (Secret alert-webhook-secret에서만 읽는다)
+            - name: N8N_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: alert-webhook-secret
+                  key: ALERT_WEBHOOK_SECRET
           resources:
             requests: { cpu: "50m", memory: "128Mi" }
             limits: { cpu: "500m", memory: "256Mi" }

@@ -11,6 +11,8 @@ import redis.asyncio as redis
 
 # k8s에서는 N8N_WEBHOOK_URL 환경변수로 n8n 서비스 주소를 주입한다
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/payment-anomaly")
+# n8n 웹훅은 공개 주소라서, 이 값을 헤더로 같이 보내야 n8n이 알림을 중계한다 (k8s에서는 Secret에서 주입)
+N8N_WEBHOOK_SECRET = os.environ.get("N8N_WEBHOOK_SECRET", "")
 
 # 알림 on/off 상태를 Redis에 둬서, 대시보드의 토글 스위치(control_server.py)와
 # 이 프로세스가 같은 값을 공유한다. 키가 없으면(최초 실행) 기본값은 켜짐.
@@ -48,7 +50,12 @@ async def fire_alert(client: httpx.AsyncClient, anomaly_type: str, detail: dict)
 
     print(f"\n🚨 [이상탐지] {anomaly_type} - {detail}")
     try:
-        await client.post(N8N_WEBHOOK_URL, json=payload, timeout=5.0)
+        await client.post(
+            N8N_WEBHOOK_URL,
+            json=payload,
+            headers={"x-alert-secret": N8N_WEBHOOK_SECRET},
+            timeout=5.0,
+        )
     except httpx.HTTPError as e:
         # n8n이 아직 이 웹훅을 안 만들었거나(Phase 7 이전) 꺼져있어도, 이상탐지 로직 자체는
         # 계속 동작해야 하므로 여기서 예외를 삼키고 로그만 남긴다.
