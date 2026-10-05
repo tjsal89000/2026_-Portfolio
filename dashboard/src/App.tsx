@@ -87,7 +87,7 @@ export default function App() {
           {view === "troubleshooting" && <TroubleshootingPage />}
         </Suspense>
 
-        <Box component="footer" sx={{ borderTop: (t) => `1px solid ${t.palette.divider}`, py: 2, px: 3, textAlign: "center" }}>
+        <Box component="footer" sx={{ borderTop: (t) => `1px solid ${t.palette.divider}`, py: 2, px: 3, textAlign: "right" }}>
           <Typography variant="caption" color="text.secondary">
             Copyright © 2026 윤경록 · ygrhash
           </Typography>
