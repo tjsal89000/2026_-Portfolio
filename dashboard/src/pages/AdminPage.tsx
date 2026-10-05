@@ -139,11 +139,11 @@ export default function AdminPage() {
     return (
       <>
         <Toolbar />
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
+        <Box sx={{ p: 3, maxWidth: 420, mx: "auto", mt: 6 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, textAlign: "center" }}>
             관리자
           </Typography>
-          <Paper variant="outlined" sx={{ p: 3, maxWidth: 480 }}>
+          <Paper variant="outlined" sx={{ p: 3 }}>
             {error && (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 {error}
@@ -179,7 +179,7 @@ export default function AdminPage() {
   return (
     <>
       <Toolbar />
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, maxWidth: 1200, mx: "auto", width: "100%" }}>
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2, gap: 2, flexWrap: "wrap" }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
