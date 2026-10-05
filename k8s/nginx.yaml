@@ -148,6 +148,8 @@ metadata:
 # 도메인을 포트 없이 http://aiops.ygrhash.dev/ 로 열기 위함 (30080 NodePort 대신)
 spec:
   type: LoadBalancer
+  # 방문자의 실제 IP를 nginx까지 그대로 전달한다 (기본값은 노드 주소로 바뀌어 방문자 구분이 안 된다)
+  externalTrafficPolicy: Local
   selector: { app: nginx }
   ports:
     - name: http
