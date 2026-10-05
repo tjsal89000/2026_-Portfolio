@@ -214,16 +214,25 @@ resource "aws_iam_role_policy" "failover" {
         Resource = "*"
       },
       {
+        # 대기 인스턴스 종료 (1시간 안에 교체 Spot이 없을 때만 호출된다)
+        Effect   = "Allow"
+        Action   = ["ec2:StopInstances"]
+        Resource = "arn:aws:ec2:${var.region}:*:instance/${var.standby_instance_id}"
+      },
+      {
         # 교체용 인스턴스에 instance profile을 붙이려면 역할 전달 권한이 필요하다
         Effect   = "Allow"
         Action   = ["iam:PassRole"]
         Resource = aws_iam_role.spot.arn
       },
       {
-        # 용량이 없을 때 "1시간 뒤 대기 인스턴스 중지" 예약을 만든다 (예약 이름은 stop-standby-* 로 제한)
+        # 용량이 없을 때 5분 간격 Spot 재시도 예약과 1시간 마감 예약을 만들고, 잡히면 지운다 (이름 패턴으로 제한)
         Effect   = "Allow"
-        Action   = ["scheduler:CreateSchedule"]
-        Resource = "arn:aws:scheduler:${var.region}:*:schedule/default/stop-standby-*"
+        Action   = ["scheduler:CreateSchedule", "scheduler:DeleteSchedule"]
+        Resource = [
+          "arn:aws:scheduler:${var.region}:*:schedule/default/retry-spot-*",
+          "arn:aws:scheduler:${var.region}:*:schedule/default/give-up-*",
+        ]
       },
       {
         # 예약이 Lambda를 호출할 때 쓰는 역할을 넘긴다
@@ -284,7 +293,8 @@ resource "aws_lambda_function" "failover" {
       REPLACEMENT_KEY_NAME             = data.aws_key_pair.this.key_name
       REPLACEMENT_INSTANCE_PROFILE     = aws_iam_instance_profile.spot.name
       REPLACEMENT_INSTANCE_TYPE        = var.spot_instance_type
-      STOP_STANDBY_AFTER_MINUTES       = "60"
+      RETRY_INTERVAL_MINUTES           = "5"
+      RETRY_WINDOW_MINUTES             = "60"
       SCHEDULER_ROLE_ARN               = aws_iam_role.scheduler.arn
     }
   }
