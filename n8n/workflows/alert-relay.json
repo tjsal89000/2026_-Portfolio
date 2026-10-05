@@ -1,0 +1,51 @@
+{
+  "name": "이상탐지 알림 중계",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "payment-anomaly",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "이상탐지 웹훅",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "a1b2c3d4-0001-4000-8000-000000000002"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gateway:8095/webhook/alert-relay",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000003",
+      "name": "게이트웨이로 중계",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0]
+    }
+  ],
+  "connections": {
+    "이상탐지 웹훅": {
+      "main": [
+        [
+          {
+            "node": "게이트웨이로 중계",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
