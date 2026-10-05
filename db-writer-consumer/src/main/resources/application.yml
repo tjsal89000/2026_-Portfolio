@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/aiops_db
     username: aiops
-    password: aiops123
+    # password는 기본값 없이 SPRING_DATASOURCE_PASSWORD 환경변수(k8s Secret)에서만 받는다
   jpa:
     hibernate:
       ddl-auto: none # 스키마는 db/init.sql로 직접 관리 - JPA가 테이블을 만들거나 바꾸지 않게 함

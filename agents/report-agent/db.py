@@ -4,9 +4,10 @@ import os
 
 import psycopg2
 
+# 비밀번호는 기본값으로 두지 않는다. k8s에서는 REPORT_DB_DSN(Secret)으로 주입된다.
 DB_DSN = os.environ.get(
     "REPORT_DB_DSN",
-    "dbname=aiops_db user=aiops password=aiops123 host=localhost port=5432",
+    "dbname=aiops_db user=aiops host=localhost port=5432",
 )
 
 

@@ -11,7 +11,7 @@ const pool = new pg.Pool({
   host: process.env.POSTGRES_HOST ?? "localhost",
   port: Number(process.env.POSTGRES_PORT ?? 5432),
   user: process.env.POSTGRES_USER ?? "aiops",
-  password: process.env.POSTGRES_PASSWORD ?? "aiops123",
+  password: process.env.POSTGRES_PASSWORD, // 기본값 없음: k8s Secret이나 로컬 환경변수에서만 받는다
   database: process.env.POSTGRES_DB ?? "aiops_db",
 });
 
