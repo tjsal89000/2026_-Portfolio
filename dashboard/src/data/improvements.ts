@@ -32,10 +32,4 @@ export const IMPROVEMENTS: Improvement[] = [
       "terraform plan에서 대기 온디맨드 인스턴스가 교체 대상으로 보인다(AMI 드리프트). 적용하면 대기 인스턴스가 바뀔 수 있어서, AMI를 고정한 뒤에 관리해야 한다.",
     priority: "medium",
   },
-  {
-    title: "README에 실제 화면 캡처가 없음",
-    description:
-      "저장소만 보면 대시보드의 장점이 잘 보이지 않는다. 메인 화면과 장애 주입 시연 화면을 캡처해서 README 상단에 넣어야 한다.",
-    priority: "medium",
-  },
 ];

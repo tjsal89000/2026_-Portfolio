@@ -5,7 +5,17 @@
 AIOps 플랫폼. Java/Python/TypeScript 세 언어를 각자의 강점에 맞는 자리에 배치했고, 개발 과정에서
 실제로 겪은 문제들을 STAR 형식으로 전부 기록해뒀다.
 
-**데모**: Terraform으로 EC2 + k3s에 올려서 `terraform apply` 한 번으로 아래 주소가 뜨는 것까지 확인함.
+**데모**: https://aiops.ygrhash.dev/dashboard/ (AWS Spot 인스턴스 + k3s, HTTPS). 소개 화면부터 시작해서 메뉴로 이동할 수 있다.
+
+### 화면
+
+**실시간 모니터링** — 결제 TPS, 에러율, Kafka Lag, 이상탐지 알림(n8n 경유 표시), 시연 제어 버튼
+
+![실시간 모니터링](docs/images/realtime-monitoring.png)
+
+**운영 지표** — SLO와 에러 예산, CI 빌드 기록, 결제 요청 추적, AWS 비용(원화 환산), 부하 테스트 결과
+
+![운영 지표](docs/images/ops-metrics.png)
 
 ---
 
