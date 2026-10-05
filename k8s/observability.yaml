@@ -270,8 +270,9 @@ spec:
           env:
             - name: GF_AUTH_ANONYMOUS_ENABLED
               value: "true"
+            # 익명 방문자는 보기만 가능 (Viewer). 설정, 데이터 소스, 대시보드 수정은 관리자 로그인이 필요하다.
             - name: GF_AUTH_ANONYMOUS_ORG_ROLE
-              value: "Admin"
+              value: "Viewer"
             - name: GF_SERVER_ROOT_URL
               value: "http://localhost/grafana/"
             - name: GF_SERVER_SERVE_FROM_SUB_PATH
