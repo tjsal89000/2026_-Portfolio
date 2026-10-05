@@ -13,6 +13,28 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe("reserveChaos (쿨다운)", () => {
+  it("실행 중에는 두 번째 요청을 거부한다", async () => {
+    const mod = await loadWith("true", "s3cret-test");
+    expect(mod.reserveChaos(30, 0).ok).toBe(true);
+    expect(mod.reserveChaos(30, 10_000).ok).toBe(false);
+  });
+
+  it("실행이 끝나고 1분이 지나야 다시 허용한다", async () => {
+    const mod = await loadWith("true", "s3cret-test");
+    mod.reserveChaos(30, 0); // 30초 실행 + 60초 쿨다운 = 90초까지 잠김
+    expect(mod.reserveChaos(30, 89_000).ok).toBe(false);
+    expect(mod.reserveChaos(30, 90_000).ok).toBe(true);
+  });
+
+  it("실행 시작에 실패하면 예약을 되돌려 바로 다시 시도할 수 있다", async () => {
+    const mod = await loadWith("true", "s3cret-test");
+    mod.reserveChaos(30, 0);
+    mod.releaseChaos();
+    expect(mod.reserveChaos(30, 1_000).ok).toBe(true);
+  });
+});
+
 describe("checkPassword", () => {
   it("비밀번호가 설정되지 않으면 기능 자체가 꺼진 것으로 본다", async () => {
     const mod = await loadWith("true", "");

@@ -16,6 +16,7 @@ import { API_ORIGIN } from "../apiOrigin";
 interface ChaosStatus {
   enabled: boolean;
   running: boolean;
+  cooldownSeconds: number;
   remainingSeconds: number;
   maxTps: number;
   maxSeconds: number;
@@ -110,17 +111,27 @@ export default function ChaosControls() {
               variant="contained"
               color="warning"
               onClick={() => setMode("burst")}
-              disabled={status.running}
+              disabled={status.running || status.cooldownSeconds > 0}
             >
-              {status.running ? `트래픽 급증 중 (${status.remainingSeconds}초)` : MODE_TITLE.burst}
+              {status.running
+                ? `트래픽 급증 중 (${status.remainingSeconds}초)`
+                : status.cooldownSeconds > 0
+                  ? `쿨다운 ${status.cooldownSeconds}초`
+                  : MODE_TITLE.burst}
             </Button>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
               30초 동안 결제 요청을 몰아 보냅니다. TPS가 올라가고 이상탐지가 고액·반복 요청 알림을 띄우는지 확인하세요.
             </Typography>
           </Box>
           <Box sx={{ maxWidth: 300 }}>
-            <Button size="small" variant="contained" color="warning" onClick={() => setMode("lag")}>
-              {MODE_TITLE.lag}
+            <Button
+              size="small"
+              variant="contained"
+              color="warning"
+              onClick={() => setMode("lag")}
+              disabled={status.cooldownSeconds > 0}
+            >
+              {status.cooldownSeconds > 0 ? `쿨다운 ${status.cooldownSeconds}초` : MODE_TITLE.lag}
             </Button>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
               30초 동안 DB 저장을 멈춥니다. 요청은 Kafka에 쌓여 Consumer Lag이 올라가고, 재개되면 0으로 돌아옵니다. 트래픽 급증과 함께 누르면 더 뚜렷합니다.

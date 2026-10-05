@@ -60,9 +60,18 @@ const CONSUMER_URL = process.env.CONSUMER_URL ?? "http://db-writer-consumer:8081
 
 export async function pauseConsumer(secondsInput: number): Promise<{ started: boolean; seconds: number; reason?: string }> {
   const seconds = clampBurst(30, secondsInput).seconds;
-  const res = await fetch(`${CONSUMER_URL}/internal/consumer/pause?seconds=${seconds}`, { method: "POST" });
-  if (!res.ok) throw new Error(`consumer ${res.status}`);
-  return (await res.json()) as { started: boolean; seconds: number; reason?: string };
+  const reserved = reserveChaos(seconds);
+  if (!reserved.ok) return { started: false, seconds, reason: reserved.reason };
+  try {
+    const res = await fetch(`${CONSUMER_URL}/internal/consumer/pause?seconds=${seconds}`, { method: "POST" });
+    if (!res.ok) throw new Error(`consumer ${res.status}`);
+    const json = (await res.json()) as { started: boolean; seconds: number; reason?: string };
+    if (!json.started) releaseChaos(); // consumer가 이미 멈춰 있다고 거절한 경우 쿨다운을 걸지 않는다
+    return json;
+  } catch (err) {
+    releaseChaos();
+    throw err;
+  }
 }
 
 function randomPayment() {
@@ -84,9 +93,30 @@ function randomPayment() {
 
 let current: { endsAt: number; timer: ReturnType<typeof setInterval>; stopTimer: ReturnType<typeof setTimeout> } | null = null;
 
+// 주입이 끝난 뒤 1분은 누구도 다시 실행할 수 없다. 여러 명이 연타해도 부하가 연속으로 쌓이지 않게 하려는 장치.
+// 트래픽 급증과 소비 지연이 같은 쿨다운을 공유한다.
+export const COOLDOWN_MS = 60_000;
+let busyUntil = 0; // 실행 종료 시각 + 쿨다운
+
+export function reserveChaos(seconds: number, now: number = Date.now()): { ok: true } | { ok: false; reason: string } {
+  if (now < busyUntil) {
+    const wait = Math.ceil((busyUntil - now) / 1000);
+    return { ok: false, reason: `실행 중이거나 쿨다운 중입니다. ${wait}초 뒤에 다시 시도하세요` };
+  }
+  busyUntil = now + seconds * 1000 + COOLDOWN_MS;
+  return { ok: true };
+}
+
+// 실행을 시작하지 못했을 때(예: 대상 서비스 연결 실패) 예약을 되돌린다
+export function releaseChaos(): void {
+  busyUntil = 0;
+}
+
 export function chaosStatus() {
   const running = current !== null && current.endsAt > Date.now();
+  const cooldownSeconds = Math.max(0, Math.ceil((busyUntil - Date.now()) / 1000));
   return {
+    cooldownSeconds,
     // 비밀번호까지 설정돼 있어야 실제로 실행 가능하다. 화면에는 "비밀번호 필요" 여부만 알려준다.
     enabled: ENABLED && PASSWORD !== "",
     requiresPassword: true,
@@ -100,7 +130,8 @@ export function chaosStatus() {
 export function startBurst(tpsInput: number, secondsInput: number): { started: boolean; tps: number; seconds: number; reason?: string } {
   const { tps, seconds } = clampBurst(tpsInput, secondsInput);
   if (!ENABLED) return { started: false, tps, seconds, reason: "장애 주입이 꺼져 있습니다" };
-  if (current && current.endsAt > Date.now()) return { started: false, tps, seconds, reason: "이미 실행 중입니다" };
+  const reserved = reserveChaos(seconds);
+  if (!reserved.ok) return { started: false, tps, seconds, reason: reserved.reason };
 
   // 100ms마다 TPS/10건씩 보낸다 (초당 TPS건을 10번으로 나눠 흩뿌림)
   const perTick = Math.max(1, Math.round(tps / 10));
