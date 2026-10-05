@@ -15,12 +15,6 @@ export const IMPROVEMENTS: Improvement[] = [
     priority: "high",
   },
   {
-    title: "인증서 갱신 후 비밀값 재동기화가 자동이 아님",
-    description:
-      "Let's Encrypt 인증서가 갱신되면 Kubernetes Secret은 갱신 훅이 바꾸지만, 장애 전환용 저장소(SSM)의 복사본은 수동으로 다시 동기화해야 한다. 갱신 훅에 동기화를 붙이지 않으면, 전환 때 만료된 인증서가 올라갈 수 있다.",
-    priority: "high",
-  },
-  {
     title: "장애 전환 시 데이터가 새로 시작됨",
     description:
       "교체 인스턴스의 데이터베이스는 빈 상태에서 시작한다. 합성 데이터라 시연에는 문제가 없지만, 실제 서비스였다면 정기 백업과 복원 절차가 필요하다.",
