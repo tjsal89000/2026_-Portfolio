@@ -58,8 +58,9 @@ export async function listPods(namespace = "aiops"): Promise<PodInfo[]> {
   kc.loadFromDefault();
   const api = kc.makeApiClient(CoreV1Api);
 
-  const { body } = await api.listNamespacedPod(namespace);
-  return body.items.map((pod) => {
+  // v2 클라이언트는 요청을 객체로 받고, 응답을 body로 감싸지 않고 바로 돌려준다
+  const list = await api.listNamespacedPod({ namespace });
+  return list.items.map((pod) => {
     const statuses = pod.status?.containerStatuses ?? [];
     const readyCount = statuses.filter((c) => c.ready).length;
     const restarts = statuses.reduce((sum, c) => sum + c.restartCount, 0);

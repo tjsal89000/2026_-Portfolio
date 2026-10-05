@@ -77,8 +77,8 @@ describe("listEc2Instances", () => {
 describe("listPods", () => {
   it("컨테이너 상태를 ready 개수/재시작 합계로 집계한다", async () => {
     listNamespacedPod.mockResolvedValue({
-      body: {
-        items: [
+      // v2 클라이언트는 응답을 body로 감싸지 않으므로 items를 바로 둔다
+      items: [
           {
             metadata: { name: "payment-api-abc" },
             status: {
@@ -96,7 +96,6 @@ describe("listPods", () => {
             metadata: { name: "pending-pod" },
           },
         ],
-      },
     });
 
     const { listPods } = await import("./infra.js");
