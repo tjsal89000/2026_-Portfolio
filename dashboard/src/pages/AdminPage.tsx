@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, Grid, Paper, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Toolbar, Typography } from "@mui/material";
+import { Alert, Avatar, Box, Button, Chip, Grid, Paper, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Toolbar, Typography } from "@mui/material";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import KpiCard from "../components/KpiCard";
 import { API_ORIGIN } from "../apiOrigin";
 
@@ -139,11 +140,19 @@ export default function AdminPage() {
     return (
       <>
         <Toolbar />
-        <Box sx={{ p: 3, maxWidth: 420, mx: "auto", mt: 6 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, textAlign: "center" }}>
-            관리자
-          </Typography>
-          <Paper variant="outlined" sx={{ p: 3 }}>
+        <Box sx={{ p: 3, maxWidth: 420, mx: "auto", mt: { xs: 4, sm: 10 } }}>
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Avatar sx={{ width: 56, height: 56, mx: "auto", mb: 2, bgcolor: "primary.main" }}>
+              <LockOutlinedIcon />
+            </Avatar>
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+              관리자 화면
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              관리자 토큰을 입력하면 접속과 로그인 시도 기록을 볼 수 있습니다.
+            </Typography>
+          </Box>
+          <Paper variant="outlined" sx={{ p: 3, boxShadow: 2 }}>
             {error && (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 {error}
