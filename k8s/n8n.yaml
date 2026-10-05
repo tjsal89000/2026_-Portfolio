@@ -43,6 +43,9 @@ spec:
             # 앞단 nginx 한 단계를 신뢰해서 실제 접속 주소(X-Forwarded-*)를 쓰게 한다
             - name: N8N_PROXY_HOPS
               value: "1"
+            # 기본값(::)은 IPv6로만 듣는 경우가 있어서, nginx가 쓰는 IPv4 주소로도 받도록 명시한다
+            - name: N8N_LISTEN_ADDRESS
+              value: "0.0.0.0"
             - name: N8N_SECURE_COOKIE
               value: "true"
           resources:
