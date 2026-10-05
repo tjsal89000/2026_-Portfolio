@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import Sidebar, { DRAWER_WIDTH } from "./layout/Sidebar";
 import TopBar from "./layout/TopBar";
 import OverviewPage from "./pages/OverviewPage";
@@ -74,6 +74,12 @@ export default function App() {
           {view === "architecture" && <ArchitecturePage />}
           {view === "troubleshooting" && <TroubleshootingPage />}
         </Suspense>
+
+        <Box component="footer" sx={{ borderTop: (t) => `1px solid ${t.palette.divider}`, py: 2, px: 3, textAlign: "center" }}>
+          <Typography variant="caption" color="text.secondary">
+            Copyright © 2026 윤경록 · ygrhash
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );
