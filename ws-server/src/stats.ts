@@ -50,13 +50,43 @@ export function toShares(rows: { label: string; count: number }[]): Share[] {
     }));
 }
 
-let cache: { at: number; value: StatsSummary } | null = null;
-const CACHE_MS = 60_000;
 const WINDOW_DAYS = 14;
+const REFRESH_MS = 60_000;
 
-export async function getStats(): Promise<StatsSummary> {
-  if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
+// 집계 결과를 메모리에 들고 있다. 집계는 백그라운드에서 주기적으로 다시 하고, 화면 요청에는 바로 돌려준다.
+// (결제 100만 건을 매번 훑으면 한 번에 수 초가 걸려서, 요청마다 계산하지 않게 했다)
+let latest: { value: StatsSummary; computedAt: string } | null = null;
+let refreshing: Promise<void> | null = null;
 
+export async function refreshStats(): Promise<void> {
+  if (refreshing) return refreshing; // 이미 집계 중이면 같은 작업을 기다린다
+  refreshing = (async () => {
+    try {
+      const value = await computeStats();
+      latest = { value, computedAt: new Date().toISOString() };
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+// 서버가 뜨면 바로 한 번 집계하고, 이후 1분마다 다시 집계한다
+export function startStatsRefresh(): void {
+  refreshStats().catch((err) => console.error("[통계] 집계 실패:", (err as Error).message));
+  setInterval(() => {
+    refreshStats().catch((err) => console.error("[통계] 집계 실패:", (err as Error).message));
+  }, REFRESH_MS).unref();
+}
+
+// 화면 요청: 집계 결과가 이미 있으면 즉시 반환, 없으면(서버 시작 직후) 집계가 끝날 때까지 기다린다
+export async function getStats(): Promise<StatsSummary & { computedAt: string }> {
+  if (!latest) await refreshStats();
+  if (!latest) throw new Error("집계 결과가 없습니다");
+  return { ...latest.value, computedAt: latest.computedAt };
+}
+
+async function computeStats(): Promise<StatsSummary> {
   const [countries, methods, alerts, daily, totals, alertTotal] = await Promise.all([
     pool.query<{ label: string; count: number }>(
       `SELECT country AS label, COUNT(*)::int AS count FROM payments GROUP BY country`,
@@ -102,6 +132,5 @@ export async function getStats(): Promise<StatsSummary> {
     alertTypes: toShares(alerts.rows),
     daily: days,
   };
-  cache = { at: Date.now(), value };
   return value;
 }

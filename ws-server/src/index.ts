@@ -20,7 +20,7 @@ import { getRecentPayments } from "./payments.js";
 import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
 import { getCostSummary } from "./cost.js";
-import { getStats } from "./stats.js";
+import { getStats, startStatsRefresh } from "./stats.js";
 
 const REPORT_GENERATE_URL = process.env.REPORT_GENERATE_URL ?? "http://report-agent:8092/generate";
 import { chaosStatus, isChaosEnabled, pauseConsumer, startBurst } from "./chaos.js";
@@ -230,6 +230,8 @@ wss.on("connection", (ws) => {
 
 // 테이블이 없으면 만든다. 실패해도 WebSocket과 나머지 API는 계속 동작해야 하므로 프로세스를 죽이지 않는다
 ensureAlertTable().catch((err) => console.error("[alert_log 준비 실패]", (err as Error).message));
+// 통계는 백그라운드에서 미리 집계해 둔다 (화면이 열릴 때 1초 넘게 기다리지 않도록)
+startStatsRefresh();
 
 server.listen(PORT, () => {
   console.log(`[WebSocket 서버 시작] 포트 ${PORT} (GET /reports/latest, WS /ws)`);

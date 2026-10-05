@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Grid, Paper, Toolbar, Typography } from "@mui/material";
+import { Alert, Box, Grid, LinearProgress, Paper, Toolbar, Typography } from "@mui/material";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ReactNode } from "react";
 import KpiCard from "../components/KpiCard";
@@ -26,6 +26,7 @@ interface StatsData {
   paymentMethods: Share[];
   alertTypes: Share[];
   daily: DayPoint[];
+  computedAt?: string;
 }
 
 // 데이터를 기다리는 동안에도 화면이 바로 보이도록, 처음 값은 전부 비어 있는 상태다
@@ -111,10 +112,25 @@ export default function StatsPage() {
           모든 값은 저장된 합성 결제와 알림에서 집계하며, 1분마다 갱신된다.
         </Typography>
 
+        {!loaded && (
+          <Box sx={{ mb: 2 }}>
+            <LinearProgress />
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+              결제와 알림 데이터를 집계하는 중입니다. 데이터가 많아서 몇 초 걸릴 수 있습니다.
+            </Typography>
+          </Box>
+        )}
+
         {error && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             {error}
           </Alert>
+        )}
+
+        {loaded && data.computedAt && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+            마지막 집계: {new Date(data.computedAt).toLocaleString("ko-KR")} (1분마다 갱신)
+          </Typography>
         )}
 
         <Grid container spacing={2} sx={{ mb: 3 }}>
