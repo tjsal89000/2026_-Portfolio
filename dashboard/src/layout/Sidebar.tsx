@@ -13,6 +13,7 @@ import QueryStatsIcon from "@mui/icons-material/QueryStatsOutlined";
 import SpeedIcon from "@mui/icons-material/SpeedOutlined";
 import PieChartOutlinedIcon from "@mui/icons-material/PieChartOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNewOutlined";
 import {
   Drawer,
@@ -48,6 +49,7 @@ const NAV_ITEMS: { label: string; icon: ReactElement; view: ViewKey }[] = [
   { label: "인프라 현황", icon: <DnsIcon />, view: "infra" },
   { label: "인프라 구성도", icon: <SchemaIcon />, view: "architecture" },
   { label: "트러블슈팅", icon: <BuildIcon />, view: "troubleshooting" },
+  { label: "관리자", icon: <AdminPanelSettingsOutlinedIcon />, view: "admin" },
 ];
 
 // 이 대시보드 안의 화면이 아니라, nginx가 같은 origin 아래로 묶어준 별개의 도구(운영

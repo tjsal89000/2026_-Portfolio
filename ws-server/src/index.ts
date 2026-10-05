@@ -21,7 +21,8 @@ import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
 import { getCostSummary } from "./cost.js";
 import { getStats, startStatsRefresh } from "./stats.js";
-import { KNOWN_VIEWS, ensureVisitTable, getVisitSummary, isAdminEnabled, isAdminToken, recordVisit, startVisitCleanup } from "./visits.js";
+import { KNOWN_VIEWS, ensureVisitTable, isAdminEnabled, isAdminToken, recordVisit, startVisitCleanup } from "./visits.js";
+import { ensureAdminTables, getAdminOverview, lockRemainingMs, logActivity, recordFailure, startAdminCleanup } from "./admin.js";
 
 const REPORT_GENERATE_URL = process.env.REPORT_GENERATE_URL ?? "http://report-agent:8092/generate";
 import { chaosStatus, isChaosEnabled, pauseConsumer, startBurst } from "./chaos.js";
@@ -30,8 +31,9 @@ const PORT = 8096;
 
 const app = express();
 app.use(express.json());
-// nginx가 앞단에서 X-Forwarded-For로 실제 접속 IP를 넘긴다. 방문 기록에 그 IP를 쓰기 위해 프록시 헤더를 신뢰한다.
-app.set("trust proxy", true);
+// nginx 한 단계만 신뢰한다. true로 두면 클라이언트가 보낸 X-Forwarded-For 맨 앞 값을 IP로 믿게 되어,
+// 값을 바꿔 잠금을 피하거나 기록을 속일 수 있다.
+app.set("trust proxy", 1);
 
 // 다른 세 엔드포인트와 달리 이 라우트만 try/catch가 없었던 게 실제 장애로 드러났다 - Postgres가
 // 잠깐 죽었을 때 getLatestReports()가 던진 예외가 처리되지 않은 Promise 거부로 남아
@@ -142,15 +144,26 @@ app.get("/ops/admin/visits", async (req, res) => {
     res.status(404).json({ error: "not found" });
     return;
   }
+  const ip = req.ip ?? "";
+  const userAgent = req.get("user-agent") ?? "";
+  const remaining = lockRemainingMs(ip);
+  if (remaining > 0) {
+    logActivity({ kind: "login_fail", detail: "잠금 중 접근 시도", ip, userAgent });
+    res.status(429).json({ error: `시도가 많아 잠겼습니다. ${Math.ceil(remaining / 60_000)}분 뒤에 다시 시도하세요` });
+    return;
+  }
   if (!isAdminToken(req.get("x-admin-token"))) {
+    recordFailure(ip);
+    logActivity({ kind: "login_fail", detail: "토큰 불일치", ip, userAgent });
     res.status(401).json({ error: "관리자 토큰이 맞지 않습니다" });
     return;
   }
+  if (req.get("x-admin-login") === "1") logActivity({ kind: "login_ok", detail: "관리자 로그인", ip, userAgent });
   try {
-    res.json(await getVisitSummary());
+    res.json(await getAdminOverview());
   } catch (err) {
-    console.error("[방문 조회 실패]", (err as Error).message);
-    res.status(500).json({ error: "방문 기록을 지금 가져올 수 없습니다" });
+    console.error("[관리자 조회 실패]", (err as Error).message);
+    res.status(500).json({ error: "기록을 지금 가져올 수 없습니다" });
   }
 });
 
@@ -183,14 +196,18 @@ app.post("/ops/chaos/burst", (req, res) => {
     res.status(404).json({ started: false, reason: "장애 주입이 꺼져 있습니다" });
     return;
   }
-  res.json(startBurst(Number(req.body?.tps ?? 30), Number(req.body?.seconds ?? 30)));
+  const tps = Number(req.body?.tps ?? 30);
+  const seconds = Number(req.body?.seconds ?? 30);
+  const result = startBurst(tps, seconds);
+  if (result.started) logActivity({ kind: "action", detail: `장애 주입: 부하 ${tps} TPS, ${seconds}초`, ip: req.ip ?? "", userAgent: req.get("user-agent") ?? "" });
+  res.json(result);
 });
 
 // AI 리포트는 Gemini를 호출하므로, 누구나 누를 수 있어도 서버에서 5분에 한 번만 생성되게 제한한다.
 const REPORT_MIN_INTERVAL_MS = 5 * 60_000;
 let lastReportStartedAt = 0;
 
-app.post("/ops/report/generate", async (_req, res) => {
+app.post("/ops/report/generate", async (req, res) => {
   const now = Date.now();
   const wait = REPORT_MIN_INTERVAL_MS - (now - lastReportStartedAt);
   if (wait > 0) {
@@ -201,6 +218,7 @@ app.post("/ops/report/generate", async (_req, res) => {
   try {
     const upstream = await fetch(REPORT_GENERATE_URL, { method: "POST" });
     const text = await upstream.text();
+    if (upstream.ok) logActivity({ kind: "action", detail: "AI 리포트 생성", ip: req.ip ?? "", userAgent: req.get("user-agent") ?? "" });
     res.status(upstream.status).type("application/json").send(text || "{}");
   } catch {
     lastReportStartedAt = 0; // 생성이 시작되지 못했으면 바로 다시 시도할 수 있게 되돌린다
@@ -214,7 +232,10 @@ app.post("/ops/chaos/lag", async (req, res) => {
     return;
   }
   try {
-    res.json(await pauseConsumer(Number(req.body?.seconds ?? 30)));
+    const seconds = Number(req.body?.seconds ?? 30);
+    const result = await pauseConsumer(seconds);
+    if (result.started) logActivity({ kind: "action", detail: `장애 주입: consumer ${seconds}초 일시정지`, ip: req.ip ?? "", userAgent: req.get("user-agent") ?? "" });
+    res.json(result);
   } catch {
     res.status(502).json({ started: false, reason: "consumer에 연결하지 못했습니다" });
   }
@@ -273,6 +294,8 @@ startStatsRefresh();
 // 방문 기록 테이블을 준비하고, 30일 넘은 기록을 정리한다
 ensureVisitTable().catch((err) => console.error("[방문 테이블 준비 실패]", (err as Error).message));
 startVisitCleanup();
+ensureAdminTables().catch((err) => console.error("[관리자 테이블 준비 실패]", (err as Error).message));
+startAdminCleanup();
 
 server.listen(PORT, () => {
   console.log(`[WebSocket 서버 시작] 포트 ${PORT} (GET /reports/latest, WS /ws)`);

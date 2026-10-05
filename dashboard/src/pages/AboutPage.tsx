@@ -182,6 +182,10 @@ export default function AboutPage() {
             상단의 시연 제어로 트래픽 급증이나 소비 지연을 직접 일으키면 이상탐지와 Lag 변화가 어떻게 보이는지 확인할 수 있습니다.
           </Typography>
         </Paper>
+
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+          이 사이트는 메뉴 열람 기록(시각, 메뉴, 브라우저 종류, IP 주소, 임의 식별값)을 운영 확인용으로 30일간 저장합니다.
+        </Typography>
       </Box>
     </>
   );
