@@ -11,10 +11,13 @@ TMP=$(mktemp -d)
 chmod 700 "$TMP"
 trap 'rm -rf "$TMP"' EXIT
 
-put() {  # put <parameter-name> <value-from-stdin-file>
+put() {  # put <parameter-name> <value-file>
+  # 표준 등급은 값이 4096자까지다. 인증서 체인은 이보다 길 수 있어서, 크면 고급 등급(8KB, 파라미터당 월 약 0.05달러)으로 저장한다
+  tier="Standard"
+  if [ "$(wc -c < "$2")" -gt 4000 ]; then tier="Advanced"; fi
   aws ssm put-parameter --region "$REGION" --name "$1" --type SecureString --overwrite \
-    --value "file://$2" >/dev/null
-  echo "SYNCED $1"
+    --tier "$tier" --value "file://$2" >/dev/null
+  echo "SYNCED $1 ($tier)"
 }
 
 # TLS 인증서: 값을 base64 그대로 저장하고, 복원할 때 디코딩한다
