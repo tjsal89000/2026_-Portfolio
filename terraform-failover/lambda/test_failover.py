@@ -67,5 +67,44 @@ class HandlerTest(unittest.TestCase):
         self.assertEqual(kwargs["MaxCount"], 1)
 
 
+class CapacityFallbackTest(unittest.TestCase):
+    def _run_with_capacity_error(self, code):
+        from botocore.exceptions import ClientError
+
+        fake_ec2 = mock.MagicMock()
+        fake_scheduler = mock.MagicMock()
+        fake_ec2.run_instances.side_effect = ClientError({"Error": {"Code": code, "Message": "x"}}, "RunInstances")
+        context = mock.MagicMock(invoked_function_arn="arn:aws:lambda:ap-northeast-2:1:function:f")
+        with mock.patch.object(failover, "ec2", fake_ec2), mock.patch.object(failover, "scheduler", fake_scheduler):
+            result = failover.handler({"detail-type": "EC2 Spot Instance Interruption Warning"}, context)
+        return result, fake_ec2, fake_scheduler
+
+    def test_capacity_error_schedules_standby_stop_in_one_hour(self):
+        result, fake_ec2, fake_scheduler = self._run_with_capacity_error("InsufficientInstanceCapacity")
+
+        self.assertEqual(result["status"], "replacement-capacity-unavailable")
+        self.assertEqual(result["stop_after_minutes"], 60)
+        kwargs = fake_scheduler.create_schedule.call_args.kwargs
+        self.assertTrue(kwargs["ScheduleExpression"].startswith("at("))
+        self.assertEqual(kwargs["Target"]["Arn"], "arn:aws:lambda:ap-northeast-2:1:function:f")
+        self.assertEqual(kwargs["Target"]["Input"], '{"action": "stop-standby"}')
+        self.assertEqual(kwargs["ActionAfterCompletion"], "DELETE")
+
+    def test_non_capacity_error_is_raised_and_no_schedule_is_made(self):
+        from botocore.exceptions import ClientError
+
+        with self.assertRaises(ClientError):
+            self._run_with_capacity_error("UnauthorizedOperation")
+        # 예약은 만들어지지 않아야 한다 (용량 문제가 아니므로)
+
+    def test_scheduled_stop_only_stops_standby(self):
+        fake_ec2 = mock.MagicMock()
+        with mock.patch.object(failover, "ec2", fake_ec2):
+            result = failover.handler({"action": "stop-standby"}, None)
+        fake_ec2.stop_instances.assert_called_once_with(InstanceIds=[failover.STANDBY_INSTANCE_ID])
+        fake_ec2.run_instances.assert_not_called()
+        self.assertEqual(result["status"], "standby-stopped")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -218,8 +218,48 @@ resource "aws_iam_role_policy" "failover" {
         Effect   = "Allow"
         Action   = ["iam:PassRole"]
         Resource = aws_iam_role.spot.arn
+      },
+      {
+        # 용량이 없을 때 "1시간 뒤 대기 인스턴스 중지" 예약을 만든다 (예약 이름은 stop-standby-* 로 제한)
+        Effect   = "Allow"
+        Action   = ["scheduler:CreateSchedule"]
+        Resource = "arn:aws:scheduler:${var.region}:*:schedule/default/stop-standby-*"
+      },
+      {
+        # 예약이 Lambda를 호출할 때 쓰는 역할을 넘긴다
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = aws_iam_role.scheduler.arn
       }
     ]
+  })
+}
+
+# EventBridge Scheduler가 이 Lambda를 호출할 때 쓰는 역할 (이 함수 하나만 호출 가능)
+resource "aws_iam_role" "scheduler" {
+  name = "aiops-platform-scheduler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "scheduler.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "scheduler" {
+  name = "invoke-failover"
+  role = aws_iam_role.scheduler.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["lambda:InvokeFunction"]
+      Resource = aws_lambda_function.failover.arn
+    }]
   })
 }
 
@@ -244,6 +284,8 @@ resource "aws_lambda_function" "failover" {
       REPLACEMENT_KEY_NAME             = data.aws_key_pair.this.key_name
       REPLACEMENT_INSTANCE_PROFILE     = aws_iam_instance_profile.spot.name
       REPLACEMENT_INSTANCE_TYPE        = var.spot_instance_type
+      STOP_STANDBY_AFTER_MINUTES       = "60"
+      SCHEDULER_ROLE_ARN               = aws_iam_role.scheduler.arn
     }
   }
 }
