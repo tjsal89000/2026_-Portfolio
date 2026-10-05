@@ -22,7 +22,7 @@ import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
 import { getCostSummary } from "./cost.js";
 
 const REPORT_GENERATE_URL = process.env.REPORT_GENERATE_URL ?? "http://report-agent:8092/generate";
-import { checkPassword, chaosStatus, pauseConsumer, startBurst } from "./chaos.js";
+import { chaosStatus, isChaosEnabled, pauseConsumer, startBurst } from "./chaos.js";
 
 const PORT = 8096;
 
@@ -121,42 +121,42 @@ app.get("/ops/chaos/status", (_req, res) => {
   res.json(chaosStatus());
 });
 
-// 공개 대시보드에서 누구나 버튼은 보지만, 실행은 비밀번호가 맞아야 한다. 비밀번호는 본문(JSON)으로만 받는다
-// (URL에 넣으면 nginx 접근 로그에 그대로 남기 때문).
-// 비밀번호가 맞지 않으면 응답을 보내고 false를 돌려준다. 장애 주입 두 종류(트래픽·소비 지연)가 같은 규칙을 쓴다.
-function rejectUnlessAuthorized(req: express.Request, res: express.Response, requireEnabled = true): boolean {
-  const check = checkPassword(req.body?.password, requireEnabled);
-  if (check === "ok") return true;
-  if (check === "disabled") {
-    res.status(404).json({ started: false, reason: "장애 주입이 꺼져 있습니다" });
-  } else if (check === "locked") {
-    res.status(429).json({ started: false, reason: "틀린 입력이 많아 10분간 잠겼습니다. 잠시 후 다시 시도해 주세요" });
-  } else {
-    res.status(403).json({ started: false, reason: "비밀번호가 맞지 않습니다" });
-  }
-  return false;
-}
-
+// 비밀번호 없이 누구나 누를 수 있다. 대신 서버가 시간·TPS·쿨다운으로 제한한다 (chaos.ts 참고).
 app.post("/ops/chaos/burst", (req, res) => {
-  if (!rejectUnlessAuthorized(req, res)) return;
+  if (!isChaosEnabled()) {
+    res.status(404).json({ started: false, reason: "장애 주입이 꺼져 있습니다" });
+    return;
+  }
   res.json(startBurst(Number(req.body?.tps ?? 30), Number(req.body?.seconds ?? 30)));
 });
 
-// AI 리포트 생성은 Gemini 호출이 들어가서 누구나 누르면 한도와 비용이 샌다. 장애 주입과 같은 비밀번호로 막는다.
-// 장애 주입 스위치(CHAOS_ENABLED)와는 무관하게 동작하도록 requireEnabled=false로 검사한다.
-app.post("/ops/report/generate", async (req, res) => {
-  if (!rejectUnlessAuthorized(req, res, false)) return;
+// AI 리포트는 Gemini를 호출하므로, 누구나 누를 수 있어도 서버에서 5분에 한 번만 생성되게 제한한다.
+const REPORT_MIN_INTERVAL_MS = 5 * 60_000;
+let lastReportStartedAt = 0;
+
+app.post("/ops/report/generate", async (_req, res) => {
+  const now = Date.now();
+  const wait = REPORT_MIN_INTERVAL_MS - (now - lastReportStartedAt);
+  if (wait > 0) {
+    res.status(429).json({ started: false, reason: `리포트는 5분에 한 번만 생성됩니다. ${Math.ceil(wait / 1000)}초 뒤에 다시 시도하세요` });
+    return;
+  }
+  lastReportStartedAt = now;
   try {
     const upstream = await fetch(REPORT_GENERATE_URL, { method: "POST" });
     const text = await upstream.text();
     res.status(upstream.status).type("application/json").send(text || "{}");
   } catch {
+    lastReportStartedAt = 0; // 생성이 시작되지 못했으면 바로 다시 시도할 수 있게 되돌린다
     res.status(502).json({ started: false, reason: "리포트 에이전트에 연결하지 못했습니다" });
   }
 });
 
 app.post("/ops/chaos/lag", async (req, res) => {
-  if (!rejectUnlessAuthorized(req, res)) return;
+  if (!isChaosEnabled()) {
+    res.status(404).json({ started: false, reason: "장애 주입이 꺼져 있습니다" });
+    return;
+  }
   try {
     res.json(await pauseConsumer(Number(req.body?.seconds ?? 30)));
   } catch {

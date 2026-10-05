@@ -29,12 +29,6 @@ export const IMPROVEMENTS: Improvement[] = [
     priority: "high",
   },
   {
-    title: "시연 비밀번호가 추측하기 쉬운 값",
-    description:
-      "장애 주입과 AI 리포트 생성이 같은 비밀번호(0000)를 쓴다. 틀린 입력은 10분에 5번으로 잠기지만, 공개 상태로 오래 두려면 더 긴 값으로 바꿔야 한다.",
-    priority: "medium",
-  },
-  {
     title: "대기 인스턴스 AMI가 고정되지 않음",
     description:
       "terraform plan에서 대기 온디맨드 인스턴스가 교체 대상으로 보인다(AMI 드리프트). 적용하면 대기 인스턴스가 바뀔 수 있어서, AMI를 고정한 뒤에 관리해야 한다.",

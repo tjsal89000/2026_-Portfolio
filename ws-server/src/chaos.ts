@@ -1,51 +1,26 @@
 /**
- * 장애 주입 (트래픽 급증 시연)
+ * 시연용 장애 주입 (트래픽 급증 / Kafka 소비 지연)
  *
- * 목적: "트래픽이 급증하면 이상탐지가 잡고, 알림과 리포트가 남는다"를 면접 중에 실제로 보여준다.
- *
- * 안전장치
- *  - CHAOS_ENABLED=true일 때만 동작한다. 기본값은 꺼짐이고, 꺼져 있으면 버튼 자체가 대시보드에 나오지 않는다.
+ * 누구나 버튼을 누를 수 있다. 대신 서버가 강하게 제한한다.
+ *  - CHAOS_ENABLED=true일 때만 동작한다 (끄는 스위치).
  *  - 한 번에 최대 100 TPS, 최대 60초로 잘라낸다. 끝나면 자동으로 멈춘다.
- *  - 동시에 하나만 실행된다.
- * 켜는 방법: k8s/ws-server.yaml의 CHAOS_ENABLED를 "true"로 바꾸고 apply. 면접이 끝나면 다시 "false".
+ *  - 주입이 끝난 뒤 1분 동안은 두 기능 모두 다시 실행할 수 없다(쿨다운). 연타해도 부하가 연속으로 쌓이지 않는다.
  */
 
-import { createHash, timingSafeEqual } from "node:crypto";
-
 const ENABLED = process.env.CHAOS_ENABLED === "true";
-// 비밀번호는 코드에 두지 않는다. k8s Secret(chaos-secrets)에서 환경변수로만 받는다.
-const PASSWORD = process.env.CHAOS_PASSWORD ?? "";
 const GATEWAY_URL = process.env.GATEWAY_URL ?? "http://gateway:8095/api/payments";
+// 소비 지연은 db-writer-consumer의 내부 엔드포인트를 쓴다 (nginx에 노출하지 않음)
+const CONSUMER_URL = process.env.CONSUMER_URL ?? "http://db-writer-consumer:8081";
 
 export const MAX_TPS = 100;
 export const MAX_SECONDS = 60;
+export const COOLDOWN_MS = 60_000;
 
-// 무작위 대입을 막기 위해, 10분 안에 틀린 입력이 5번 쌓이면 그 기간 동안 맞는 비밀번호도 거부한다.
-const LOCK_WINDOW_MS = 10 * 60_000;
-const MAX_FAILURES = 5;
-let failureTimes: number[] = [];
-
-export type PasswordCheck = "ok" | "wrong" | "locked" | "disabled";
-
-// 입력과 비밀번호를 SHA-256 해시로 바꿔서 비교한다. 해시 길이가 같아서 timingSafeEqual을 쓸 수 있고,
-// 어느 글자에서 틀렸는지 응답 시간으로 새는 것을 막는다.
-// requireEnabled=false면 CHAOS_ENABLED와 무관하게 비밀번호만 본다 (리포트 생성 보호처럼 장애 주입과 별개로 쓰는 경우)
-export function checkPassword(input: unknown, requireEnabled = true): PasswordCheck {
-  if ((requireEnabled && !ENABLED) || PASSWORD === "") return "disabled";
-
-  const now = Date.now();
-  failureTimes = failureTimes.filter((t) => now - t < LOCK_WINDOW_MS);
-  if (failureTimes.length >= MAX_FAILURES) return "locked";
-
-  const given = createHash("sha256").update(String(input ?? "")).digest();
-  const expected = createHash("sha256").update(PASSWORD).digest();
-  if (timingSafeEqual(given, expected)) return "ok";
-
-  failureTimes.push(now);
-  return "wrong";
+export function isChaosEnabled(): boolean {
+  return ENABLED;
 }
 
-// 입력이 이상하거나 너무 크면 조용히 허용 범위 안으로 줄인다 (에러로 멈추지 않고 실제로 걸리는 값을 알려준다)
+// 입력이 이상하거나 너무 크면 조용히 허용 범위 안으로 줄인다
 export function clampBurst(tps: number, seconds: number): { tps: number; seconds: number } {
   const t = Number.isFinite(tps) ? Math.round(tps) : 30;
   const s = Number.isFinite(seconds) ? Math.round(seconds) : 30;
@@ -55,8 +30,22 @@ export function clampBurst(tps: number, seconds: number): { tps: number; seconds
   };
 }
 
-// 시연용 소비 지연: db-writer-consumer를 지정한 시간만큼 멈춘다. 같은 비밀번호 검사를 통과한 요청에서만 호출된다.
-const CONSUMER_URL = process.env.CONSUMER_URL ?? "http://db-writer-consumer:8081";
+// 실행 종료 시각 + 쿨다운. 트래픽 급증과 소비 지연이 이 값을 공유한다.
+let busyUntil = 0;
+
+export function reserveChaos(seconds: number, now: number = Date.now()): { ok: true } | { ok: false; reason: string } {
+  if (now < busyUntil) {
+    const wait = Math.ceil((busyUntil - now) / 1000);
+    return { ok: false, reason: `실행 중이거나 쿨다운 중입니다. ${wait}초 뒤에 다시 시도하세요` };
+  }
+  busyUntil = now + seconds * 1000 + COOLDOWN_MS;
+  return { ok: true };
+}
+
+// 실행을 시작하지 못했을 때(연결 실패 등) 예약을 되돌린다
+export function releaseChaos(): void {
+  busyUntil = 0;
+}
 
 export async function pauseConsumer(secondsInput: number): Promise<{ started: boolean; seconds: number; reason?: string }> {
   const seconds = clampBurst(30, secondsInput).seconds;
@@ -93,34 +82,13 @@ function randomPayment() {
 
 let current: { endsAt: number; timer: ReturnType<typeof setInterval>; stopTimer: ReturnType<typeof setTimeout> } | null = null;
 
-// 주입이 끝난 뒤 1분은 누구도 다시 실행할 수 없다. 여러 명이 연타해도 부하가 연속으로 쌓이지 않게 하려는 장치.
-// 트래픽 급증과 소비 지연이 같은 쿨다운을 공유한다.
-export const COOLDOWN_MS = 60_000;
-let busyUntil = 0; // 실행 종료 시각 + 쿨다운
-
-export function reserveChaos(seconds: number, now: number = Date.now()): { ok: true } | { ok: false; reason: string } {
-  if (now < busyUntil) {
-    const wait = Math.ceil((busyUntil - now) / 1000);
-    return { ok: false, reason: `실행 중이거나 쿨다운 중입니다. ${wait}초 뒤에 다시 시도하세요` };
-  }
-  busyUntil = now + seconds * 1000 + COOLDOWN_MS;
-  return { ok: true };
-}
-
-// 실행을 시작하지 못했을 때(예: 대상 서비스 연결 실패) 예약을 되돌린다
-export function releaseChaos(): void {
-  busyUntil = 0;
-}
-
 export function chaosStatus() {
   const running = current !== null && current.endsAt > Date.now();
   const cooldownSeconds = Math.max(0, Math.ceil((busyUntil - Date.now()) / 1000));
   return {
-    cooldownSeconds,
-    // 비밀번호까지 설정돼 있어야 실제로 실행 가능하다. 화면에는 "비밀번호 필요" 여부만 알려준다.
-    enabled: ENABLED && PASSWORD !== "",
-    requiresPassword: true,
+    enabled: ENABLED,
     running,
+    cooldownSeconds,
     remainingSeconds: running ? Math.ceil((current!.endsAt - Date.now()) / 1000) : 0,
     maxTps: MAX_TPS,
     maxSeconds: MAX_SECONDS,
@@ -133,7 +101,7 @@ export function startBurst(tpsInput: number, secondsInput: number): { started: b
   const reserved = reserveChaos(seconds);
   if (!reserved.ok) return { started: false, tps, seconds, reason: reserved.reason };
 
-  // 100ms마다 TPS/10건씩 보낸다 (초당 TPS건을 10번으로 나눠 흩뿌림)
+  // 100ms마다 TPS/10건씩 보낸다
   const perTick = Math.max(1, Math.round(tps / 10));
   const timer = setInterval(() => {
     for (let i = 0; i < perTick; i++) {
@@ -142,7 +110,7 @@ export function startBurst(tpsInput: number, secondsInput: number): { started: b
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(randomPayment()),
       }).catch(() => {
-        // 실패한 요청은 세지 않는다 - 시연의 목적은 부하 자체라서 개별 실패로 멈추지 않는다
+        // 개별 실패로 멈추지 않는다 - 시연의 목적은 부하 자체
       });
     }
   }, 100);

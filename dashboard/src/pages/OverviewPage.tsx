@@ -7,13 +7,13 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  DialogContentText,
   DialogTitle,
   Grid,
   List,
   ListItem,
   ListItemText,
   Paper,
-  TextField,
   Toolbar,
   Typography,
 } from "@mui/material";
@@ -87,25 +87,20 @@ export default function OverviewPage() {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [cooling, setCooling] = useState(false);
 
-  // 생성은 비밀번호를 맞춰야 실행된다. 비밀번호는 요청 본문으로만 보내고 저장하지 않는다.
+  // 리포트 생성 전에 확인창을 띄운다. 서버는 5분에 한 번만 생성하도록 제한한다.
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportPassword, setReportPassword] = useState("");
   const [reportAuthError, setReportAuthError] = useState<string | null>(null);
 
   const generateReport = async () => {
     setGenerateError(null);
     setReportAuthError(null);
     setGenerating(true);
-    // rejected: 비밀번호 거부 (생성 안 됨, 쿨다운 없음) / failed: 서버 오류 / done: 생성 완료
+    // rejected: 서버가 제한으로 거부 (생성 안 됨, 쿨다운 없음) / failed: 서버 오류 / done: 생성 완료
     let outcome: "rejected" | "failed" | "done" = "failed";
     try {
-      const res = await fetch(`${API_ORIGIN}/ws-server/ops/report/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: reportPassword }),
-      });
+      const res = await fetch(`${API_ORIGIN}/ws-server/ops/report/generate`, { method: "POST" });
       const json = await res.json().catch(() => ({}));
-      if (res.status === 403 || res.status === 429 || res.status === 404) {
+      if (res.status === 429 || res.status === 404) {
         outcome = "rejected";
         setReportAuthError(json.reason ?? "요청이 거부되었습니다");
       } else if (res.ok) {
@@ -117,10 +112,9 @@ export default function OverviewPage() {
       outcome = "failed";
     } finally {
       if (outcome === "failed") setGenerateError("리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
-      setReportPassword("");
       setGenerating(false);
       if (outcome !== "rejected") {
-        // 실제로 생성이 시도된 경우에만 1분 쿨다운 (비밀번호 거부는 바로 다시 입력 가능)
+        // 실제로 생성이 시도된 경우에만 1분 쿨다운 (제한 거부는 바로 다시 시도 가능)
         setCooling(true);
         setTimeout(() => setCooling(false), 60_000);
       }
@@ -330,40 +324,26 @@ export default function OverviewPage() {
                 open={reportDialogOpen}
                 onClose={() => {
                   setReportDialogOpen(false);
-                  setReportPassword("");
                   setReportAuthError(null);
                 }}
                 fullWidth
                 maxWidth="xs"
               >
-                <DialogTitle>리포트 생성 · 비밀번호 입력</DialogTitle>
+                <DialogTitle>AI 리포트를 생성할까요?</DialogTitle>
                 <DialogContent>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                    AI 리포트는 호출마다 비용이 들어서 비밀번호를 맞춰야 생성된다.
-                  </Typography>
-                  <TextField
-                    autoFocus
-                    fullWidth
-                    type="password"
-                    label="비밀번호"
-                    value={reportPassword}
-                    onChange={(e) => setReportPassword(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && reportPassword && canGenerate) generateReport();
-                    }}
-                    margin="dense"
-                    autoComplete="off"
-                  />
+                  <DialogContentText>
+                    지금 데이터를 Gemini에 보내서 운영 리포트를 만듭니다. 생성에 약 1분이 걸리며, 호출마다 Gemini 무료 한도를 씁니다. 서버는 5분에 한 번만 생성하도록 제한하고 있습니다.
+                  </DialogContentText>
                   {reportAuthError && (
-                    <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                    <Typography variant="body2" color="error" sx={{ mt: 2 }}>
                       {reportAuthError}
                     </Typography>
                   )}
                 </DialogContent>
                 <DialogActions>
-                  <Button onClick={() => setReportDialogOpen(false)}>취소</Button>
-                  <Button variant="contained" onClick={generateReport} disabled={!reportPassword || !canGenerate}>
-                    생성
+                  <Button onClick={() => setReportDialogOpen(false)}>아니오</Button>
+                  <Button variant="contained" onClick={generateReport} disabled={!canGenerate}>
+                    예, 생성합니다
                   </Button>
                 </DialogActions>
               </Dialog>
