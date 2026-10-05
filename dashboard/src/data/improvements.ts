@@ -1,5 +1,4 @@
-// "다 끝났다"가 아니라 "지금 상태에서 뭐가 더 필요한지 스스로 안다"는 것도 포트폴리오
-// 평가 포인트라, 완료된 Phase 목록만이 아니라 아직 안 채운 부분도 화면에 그대로 남겨둔다.
+// 아직 남은 보완점. 끝난 항목은 여기서 빼고, 진행 상황(Phase)에 기록한다.
 export type Priority = "high" | "medium";
 
 export interface Improvement {
@@ -10,28 +9,39 @@ export interface Improvement {
 
 export const IMPROVEMENTS: Improvement[] = [
   {
-    title: "README에 실제 화면 스크린샷 없음",
+    title: "장애 전환을 실제로 돌려보지 않음",
     description:
-      "아키텍처 다이어그램은 있지만 대시보드가 실제로 어떻게 보이는지 이미지가 없어서, " +
-      "저장소를 훑어보는 사람이 결과물을 한눈에 확인하기 어려움.",
+      "회수 시 교체 Spot 생성, 재시도, 공인 IP 인계, 대기 인스턴스 중지까지 자동화는 만들었고 권한과 설정도 검증했다. 다만 실제 회수 상황으로 끝까지 돌려본 적은 없다. 공개 사이트에 영향이 가므로 점검 시간을 정해서 한 번 확인해야 한다.",
+    priority: "high",
+  },
+  {
+    title: "인증서 갱신 후 비밀값 재동기화가 자동이 아님",
+    description:
+      "Let's Encrypt 인증서가 갱신되면 Kubernetes Secret은 갱신 훅이 바꾸지만, 장애 전환용 저장소(SSM)의 복사본은 수동으로 다시 동기화해야 한다. 갱신 훅에 동기화를 붙이지 않으면, 전환 때 만료된 인증서가 올라갈 수 있다.",
+    priority: "high",
+  },
+  {
+    title: "장애 전환 시 데이터가 새로 시작됨",
+    description:
+      "교체 인스턴스의 데이터베이스는 빈 상태에서 시작한다. 합성 데이터라 시연에는 문제가 없지만, 실제 서비스였다면 정기 백업과 복원 절차가 필요하다.",
     priority: "medium",
   },
   {
-    title: "장애 전환을 실제로 검증하지 않음",
+    title: "Spot 용량이 없을 때 사이트가 내려갈 수 있음",
     description:
-      "Spot 회수 시 대기 인스턴스로 EIP가 넘어가는 Lambda 경로는 설정과 권한만 점검했다. 실제 전환 후에는 HTTPS 인증서와 Secret을 다시 맞춰야 해서, 점검 시간을 잡아 한 번 끝까지 돌려봐야 한다.",
-    priority: "high",
+      "1시간 동안 교체 Spot을 잡지 못하면 대기 인스턴스를 중지한다. 요금은 멈추지만, 그때 사이트도 내려간다. 이 정책이 데모에 맞는지 다시 판단하거나, 중지 전에 알림을 보내는 방식을 검토해야 한다.",
+    priority: "medium",
   },
   {
-    title: "이상탐지 알림이 n8n에서 아직 연결되지 않음",
-    description:
-      "알림 칸과 인시던트 타임라인이 비어 있다. n8n에서 알림을 웹훅(/webhook/alert-relay)으로 보내는 노드를 연결하면 실제 알림 흐름을 시연할 수 있다.",
-    priority: "high",
-  },
-  {
-    title: "대기 인스턴스 AMI가 고정되지 않음",
+    title: "대기 인스턴스 이미지(AMI)가 고정되지 않음",
     description:
       "terraform plan에서 대기 온디맨드 인스턴스가 교체 대상으로 보인다(AMI 드리프트). 적용하면 대기 인스턴스가 바뀔 수 있어서, AMI를 고정한 뒤에 관리해야 한다.",
+    priority: "medium",
+  },
+  {
+    title: "README에 실제 화면 캡처가 없음",
+    description:
+      "저장소만 보면 대시보드의 장점이 잘 보이지 않는다. 메인 화면과 장애 주입 시연 화면을 캡처해서 README 상단에 넣어야 한다.",
     priority: "medium",
   },
 ];
