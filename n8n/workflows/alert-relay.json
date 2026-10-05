@@ -17,22 +17,43 @@
     },
     {
       "parameters": {
+        "jsCode": "// 이상탐지 알림이 n8n을 거쳐 왔다는 표시를 붙인다 (대시보드의 'n8n 경유' 칩에 쓰인다)\nconst body = $input.first().json.body ?? {};\nreturn [{ json: { ...body, via: 'n8n' } }];"
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000004",
+      "name": "n8n 경유 표시",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "http://gateway:8095/webhook/alert-relay",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ ({ ...$json.body, via: 'n8n', relayedAt: new Date().toISOString() }) }}",
+        "jsonBody": "={{ $json }}",
         "options": {}
       },
       "id": "a1b2c3d4-0001-4000-8000-000000000003",
       "name": "게이트웨이로 중계",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [260, 0]
+      "position": [480, 0]
     }
   ],
   "connections": {
     "이상탐지 웹훅": {
+      "main": [
+        [
+          {
+            "node": "n8n 경유 표시",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "n8n 경유 표시": {
       "main": [
         [
           {
