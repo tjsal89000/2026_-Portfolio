@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Chip, Grid, Paper, Typography } from "@mui/material";
+import { Alert, Box, Chip, Grid, Paper, Tooltip, Typography } from "@mui/material";
 import KpiCard from "./KpiCard";
 import { API_ORIGIN } from "../apiOrigin";
 
@@ -21,6 +21,7 @@ interface CostData {
 }
 
 const krwFormat = (n: number) => `₩${Math.round(n).toLocaleString()}`;
+const usdFormat = (n: number) => `$${n.toFixed(3)}`;
 
 // 비용은 자주 바뀌지 않으므로 5분마다만 다시 받는다 (서버도 1시간 캐시)
 export default function CostPanel() {
@@ -58,7 +59,7 @@ export default function CostPanel() {
       {data && !data.error && (
         <>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 2 }}>
-            <Chip size="small" variant="outlined" label={`적용 환율  $1 = ${krwFormat(data.krwRate).replace("₩", "")}원`} />
+            <Chip size="small" variant="outlined" label={`적용 환율  $1 = ${Math.round(data.krwRate).toLocaleString()}원`} />
             <Typography variant="caption" color="text.secondary">
               환율 출처: {data.rateSource}
             </Typography>
@@ -76,7 +77,7 @@ export default function CostPanel() {
             <Grid size={{ xs: 12, sm: 6 }}>
               <KpiCard
                 label="최근 집계일 비용"
-                value={last ? `${krwFormat(last.krw)} / $${last.amount.toFixed(3)}` : "-"}
+                value={last ? `${krwFormat(last.krw)} / ${usdFormat(last.amount)}` : "-"}
                 accent="success"
                 description={last ? `${last.date} 하루 비용 (집계 기준)` : "집계된 날짜가 없습니다"}
               />
@@ -84,28 +85,43 @@ export default function CostPanel() {
           </Grid>
 
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            최근 14일 일별 비용 (원)
+            최근 14일 일별 비용 (마우스를 올리면 자세히 보입니다)
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, height: 140 }}>
+          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, height: 170 }}>
             {data.days.map((d) => (
-              <Box
+              <Tooltip
                 key={d.date}
-                title={`${d.date}: ${krwFormat(d.krw)} (약 $${d.amount.toFixed(3)})`}
-                sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
+                arrow
+                placement="top"
+                title={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {d.date}
+                    </Typography>
+                    <Typography variant="body2">원화 {krwFormat(d.krw)}</Typography>
+                    <Typography variant="body2">달러 {usdFormat(d.amount)}</Typography>
+                  </Box>
+                }
               >
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: `${Math.max((d.krw / maxKrw) * 100, 2)}%`,
-                    bgcolor: "primary.main",
-                    borderRadius: "3px 3px 0 0",
-                    opacity: 0.85,
-                  }}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, mt: 0.5 }}>
-                  {d.date.slice(5)}
-                </Typography>
-              </Box>
+                <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", cursor: "default" }}>
+                  <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary", mb: 0.5, whiteSpace: "nowrap" }}>
+                    {d.krw > 0 ? krwFormat(d.krw) : "₩0"}
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: `${Math.max((d.krw / maxKrw) * 100, 2)}%`,
+                      bgcolor: "primary.main",
+                      borderRadius: "3px 3px 0 0",
+                      opacity: 0.85,
+                      "&:hover": { opacity: 1 },
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, mt: 0.5 }}>
+                    {d.date.slice(5)}
+                  </Typography>
+                </Box>
+              </Tooltip>
             ))}
           </Box>
         </>
