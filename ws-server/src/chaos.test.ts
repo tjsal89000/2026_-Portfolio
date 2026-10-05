@@ -35,6 +35,12 @@ describe("checkPassword", () => {
     const mod = await loadWith("false", "s3cret-test");
     expect(mod.checkPassword("s3cret-test")).toBe("disabled");
   });
+
+  it("requireEnabled=false면 장애 주입 스위치와 무관하게 비밀번호만 검사한다 (리포트 보호)", async () => {
+    const mod = await loadWith("false", "s3cret-test");
+    expect(mod.checkPassword("s3cret-test", false)).toBe("ok");
+    expect(mod.checkPassword("nope", false)).toBe("wrong");
+  });
 });
 
 describe("clampBurst", () => {

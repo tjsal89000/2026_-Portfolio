@@ -1,5 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import { Box, Button, Chip, CircularProgress, Grid, List, ListItem, ListItemText, Paper, Toolbar, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
+  Paper,
+  TextField,
+  Toolbar,
+  Typography,
+} from "@mui/material";
 import KpiCard from "../components/KpiCard";
 import ChaosControls from "../components/ChaosControls";
 import TrafficSparkline from "../components/TrafficSparkline";
@@ -70,19 +87,43 @@ export default function OverviewPage() {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [cooling, setCooling] = useState(false);
 
+  // 생성은 비밀번호를 맞춰야 실행된다. 비밀번호는 요청 본문으로만 보내고 저장하지 않는다.
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportPassword, setReportPassword] = useState("");
+  const [reportAuthError, setReportAuthError] = useState<string | null>(null);
+
   const generateReport = async () => {
-    setGenerating(true);
     setGenerateError(null);
+    setReportAuthError(null);
+    setGenerating(true);
+    // rejected: 비밀번호 거부 (생성 안 됨, 쿨다운 없음) / failed: 서버 오류 / done: 생성 완료
+    let outcome: "rejected" | "failed" | "done" = "failed";
     try {
-      const res = await fetch(`${API_ORIGIN}/report/generate`, { method: "POST" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await fetchReports();
+      const res = await fetch(`${API_ORIGIN}/ws-server/ops/report/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: reportPassword }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 403 || res.status === 429 || res.status === 404) {
+        outcome = "rejected";
+        setReportAuthError(json.reason ?? "요청이 거부되었습니다");
+      } else if (res.ok) {
+        outcome = "done";
+        setReportDialogOpen(false);
+        await fetchReports();
+      }
     } catch {
-      setGenerateError("리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      outcome = "failed";
     } finally {
+      if (outcome === "failed") setGenerateError("리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setReportPassword("");
       setGenerating(false);
-      setCooling(true);
-      setTimeout(() => setCooling(false), 60_000);
+      if (outcome !== "rejected") {
+        // 실제로 생성이 시도된 경우에만 1분 쿨다운 (비밀번호 거부는 바로 다시 입력 가능)
+        setCooling(true);
+        setTimeout(() => setCooling(false), 60_000);
+      }
     }
   };
 
@@ -274,7 +315,10 @@ export default function OverviewPage() {
                 <Button
                   variant="outlined"
                   size="small"
-                  onClick={generateReport}
+                  onClick={() => {
+                    setReportAuthError(null);
+                    setReportDialogOpen(true);
+                  }}
                   disabled={!canGenerate}
                   startIcon={generating ? <CircularProgress size={14} /> : undefined}
                   sx={{ flexShrink: 0 }}
@@ -282,6 +326,47 @@ export default function OverviewPage() {
                   {generating ? "생성 중 (최대 1분)" : "리포트 생성"}
                 </Button>
               </Box>
+              <Dialog
+                open={reportDialogOpen}
+                onClose={() => {
+                  setReportDialogOpen(false);
+                  setReportPassword("");
+                  setReportAuthError(null);
+                }}
+                fullWidth
+                maxWidth="xs"
+              >
+                <DialogTitle>리포트 생성 · 비밀번호 입력</DialogTitle>
+                <DialogContent>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                    AI 리포트는 호출마다 비용이 들어서 비밀번호를 맞춰야 생성된다.
+                  </Typography>
+                  <TextField
+                    autoFocus
+                    fullWidth
+                    type="password"
+                    label="비밀번호"
+                    value={reportPassword}
+                    onChange={(e) => setReportPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && reportPassword && canGenerate) generateReport();
+                    }}
+                    margin="dense"
+                    autoComplete="off"
+                  />
+                  {reportAuthError && (
+                    <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                      {reportAuthError}
+                    </Typography>
+                  )}
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setReportDialogOpen(false)}>취소</Button>
+                  <Button variant="contained" onClick={generateReport} disabled={!reportPassword || !canGenerate}>
+                    생성
+                  </Button>
+                </DialogActions>
+              </Dialog>
               {generateError && (
                 <Typography variant="body2" color="error" sx={{ mb: 1 }}>
                   {generateError}

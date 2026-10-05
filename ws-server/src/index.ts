@@ -20,6 +20,8 @@ import { getRecentPayments } from "./payments.js";
 import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
 import { getCostSummary } from "./cost.js";
+
+const REPORT_GENERATE_URL = process.env.REPORT_GENERATE_URL ?? "http://report-agent:8092/generate";
 import { checkPassword, chaosStatus, pauseConsumer, startBurst } from "./chaos.js";
 
 const PORT = 8096;
@@ -122,8 +124,8 @@ app.get("/ops/chaos/status", (_req, res) => {
 // 공개 대시보드에서 누구나 버튼은 보지만, 실행은 비밀번호가 맞아야 한다. 비밀번호는 본문(JSON)으로만 받는다
 // (URL에 넣으면 nginx 접근 로그에 그대로 남기 때문).
 // 비밀번호가 맞지 않으면 응답을 보내고 false를 돌려준다. 장애 주입 두 종류(트래픽·소비 지연)가 같은 규칙을 쓴다.
-function rejectUnlessAuthorized(req: express.Request, res: express.Response): boolean {
-  const check = checkPassword(req.body?.password);
+function rejectUnlessAuthorized(req: express.Request, res: express.Response, requireEnabled = true): boolean {
+  const check = checkPassword(req.body?.password, requireEnabled);
   if (check === "ok") return true;
   if (check === "disabled") {
     res.status(404).json({ started: false, reason: "장애 주입이 꺼져 있습니다" });
@@ -138,6 +140,19 @@ function rejectUnlessAuthorized(req: express.Request, res: express.Response): bo
 app.post("/ops/chaos/burst", (req, res) => {
   if (!rejectUnlessAuthorized(req, res)) return;
   res.json(startBurst(Number(req.body?.tps ?? 30), Number(req.body?.seconds ?? 30)));
+});
+
+// AI 리포트 생성은 Gemini 호출이 들어가서 누구나 누르면 한도와 비용이 샌다. 장애 주입과 같은 비밀번호로 막는다.
+// 장애 주입 스위치(CHAOS_ENABLED)와는 무관하게 동작하도록 requireEnabled=false로 검사한다.
+app.post("/ops/report/generate", async (req, res) => {
+  if (!rejectUnlessAuthorized(req, res, false)) return;
+  try {
+    const upstream = await fetch(REPORT_GENERATE_URL, { method: "POST" });
+    const text = await upstream.text();
+    res.status(upstream.status).type("application/json").send(text || "{}");
+  } catch {
+    res.status(502).json({ started: false, reason: "리포트 에이전트에 연결하지 못했습니다" });
+  }
 });
 
 app.post("/ops/chaos/lag", async (req, res) => {

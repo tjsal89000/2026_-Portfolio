@@ -29,8 +29,9 @@ export type PasswordCheck = "ok" | "wrong" | "locked" | "disabled";
 
 // 입력과 비밀번호를 SHA-256 해시로 바꿔서 비교한다. 해시 길이가 같아서 timingSafeEqual을 쓸 수 있고,
 // 어느 글자에서 틀렸는지 응답 시간으로 새는 것을 막는다.
-export function checkPassword(input: unknown): PasswordCheck {
-  if (!ENABLED || PASSWORD === "") return "disabled";
+// requireEnabled=false면 CHAOS_ENABLED와 무관하게 비밀번호만 본다 (리포트 생성 보호처럼 장애 주입과 별개로 쓰는 경우)
+export function checkPassword(input: unknown, requireEnabled = true): PasswordCheck {
+  if ((requireEnabled && !ENABLED) || PASSWORD === "") return "disabled";
 
   const now = Date.now();
   failureTimes = failureTimes.filter((t) => now - t < LOCK_WINDOW_MS);
