@@ -14,6 +14,9 @@ export interface AlertEvent {
   type: string;
   detail: Record<string, unknown>;
   detectedAt: number;
+  // n8n 중계 워크플로우가 붙이는 표시. 이 값이 있으면 이상탐지 알림이 n8n을 거쳐 온 것이다
+  via?: string;
+  relayedAt?: string;
 }
 
 interface FeedPaymentItem extends PaymentEvent {

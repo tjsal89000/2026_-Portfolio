@@ -159,6 +159,10 @@ export default function OverviewPage() {
   ];
 
   // 각 단계의 상태는 화면에 실제로 들어오는 데이터로만 판단한다 - 확인할 수 없는 단계는 "확인 중"으로 둔다
+  const lastN8nAlert = alerts
+    .filter((a) => a.via === "n8n")
+    .sort((x, y) => y.receivedAt - x.receivedAt)[0];
+
   const pipeline: { label: string; status: string; color: "success" | "warning" | "error" | "default" }[] = [
     {
       label: "결제 수신",
@@ -175,6 +179,12 @@ export default function OverviewPage() {
       label: "이상탐지",
       status: activeAlerts > 0 ? `최근 5분 알림 ${activeAlerts}건` : "감시 중",
       color: activeAlerts > 0 ? "warning" : "success",
+    },
+    // 이상탐지 알림은 n8n 중계 워크플로우를 거쳐야 이 화면에 나온다. 마지막으로 중계된 시각을 보여준다.
+    {
+      label: "n8n 중계",
+      status: lastN8nAlert ? `마지막 중계 ${new Date(lastN8nAlert.receivedAt).toLocaleTimeString()}` : "알림 대기",
+      color: lastN8nAlert ? "success" : "default",
     },
     {
       label: "AI 리포트",
@@ -271,7 +281,7 @@ export default function OverviewPage() {
             <Paper variant="outlined" sx={{ p: 3, height: 480, overflow: "auto" }}>
               <Typography variant="h6">이상탐지 알림</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                고액 결제·같은 계좌 반복 요청·특정 국가/결제수단 쏠림 패턴을 감지하면 여기 쌓인다
+                이상탐지 에이전트가 보낸 알림을 n8n이 받아 중계하면 여기 쌓인다 (고액 결제·반복 요청·쏠림 패턴)
               </Typography>
               <List dense>
                 {alerts.length === 0 && (
@@ -289,7 +299,11 @@ export default function OverviewPage() {
                           .join(", ") + ` · ${new Date(a.receivedAt).toLocaleTimeString()}`
                       }
                     />
-                    <Chip size="small" label="경고" color="warning" variant="outlined" />
+                    {a.via === "n8n" ? (
+                      <Chip size="small" label="n8n 경유" color="primary" variant="outlined" />
+                    ) : (
+                      <Chip size="small" label="경고" color="warning" variant="outlined" />
+                    )}
                   </ListItem>
                 ))}
               </List>
