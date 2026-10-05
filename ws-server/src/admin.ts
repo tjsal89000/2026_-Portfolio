@@ -158,10 +158,78 @@ export async function lookupGeo(ips: string[]): Promise<Map<string, Geo>> {
   return result;
 }
 
+// ip-api는 한글을 지원하지 않아서, 자주 나오는 국가·지역·도시만 한글로 바꾼다. 나머지는 영문 그대로 둔다.
+const KO_NAMES: Record<string, string> = {
+  "South Korea": "대한민국",
+  Japan: "일본",
+  China: "중국",
+  "Hong Kong": "홍콩",
+  Taiwan: "대만",
+  Singapore: "싱가포르",
+  Vietnam: "베트남",
+  Thailand: "태국",
+  Philippines: "필리핀",
+  Indonesia: "인도네시아",
+  Malaysia: "말레이시아",
+  India: "인도",
+  Australia: "호주",
+  "United States": "미국",
+  Canada: "캐나다",
+  Brazil: "브라질",
+  "United Kingdom": "영국",
+  Germany: "독일",
+  France: "프랑스",
+  Netherlands: "네덜란드",
+  Ireland: "아일랜드",
+  Sweden: "스웨덴",
+  Finland: "핀란드",
+  Russia: "러시아",
+  Seoul: "서울",
+  Busan: "부산",
+  Incheon: "인천",
+  Daegu: "대구",
+  Daejeon: "대전",
+  Gwangju: "광주",
+  Ulsan: "울산",
+  Sejong: "세종",
+  "Gyeonggi-do": "경기도",
+  "Gangwon-do": "강원도",
+  "Chungcheongbuk-do": "충청북도",
+  "Chungcheongnam-do": "충청남도",
+  "Jeollabuk-do": "전라북도",
+  "Jeollanam-do": "전라남도",
+  "Gyeongsangbuk-do": "경상북도",
+  "Gyeongsangnam-do": "경상남도",
+  "Jeju-do": "제주특별자치도",
+  Suwon: "수원",
+  Seongnam: "성남",
+  Yongin: "용인",
+  Goyang: "고양",
+  Bucheon: "부천",
+  Ansan: "안산",
+  Anyang: "안양",
+  Hwaseong: "화성",
+  Namyangju: "남양주",
+  Cheongju: "청주",
+  Cheonan: "천안",
+  Changwon: "창원",
+  Pohang: "포항",
+  Jeonju: "전주",
+  Gimhae: "김해",
+  Jeju: "제주",
+  Tokyo: "도쿄",
+  Osaka: "오사카",
+  Beijing: "베이징",
+  Shanghai: "상하이",
+  "New York": "뉴욕",
+  "San Jose": "새너제이",
+};
+
 export function formatGeo(geo: Geo | undefined): string {
   if (!geo) return "알 수 없음";
   if (geo.country === "내부망") return "내부망";
-  return [...new Set([geo.country, geo.region, geo.city].filter(Boolean))].join(" · ");
+  const ko = (s: string) => KO_NAMES[s] ?? s;
+  return [...new Set([geo.country, geo.region, geo.city].filter(Boolean).map(ko))].join(" · ");
 }
 
 export interface AdminEvent {

@@ -21,6 +21,14 @@ describe("formatGeo", () => {
     expect(formatGeo({ country: "대한민국", region: "서울특별시", city: "서울" })).toBe("대한민국 · 서울특별시 · 서울");
   });
 
+  it("영문 국가와 지역명을 한글로 바꾼다", () => {
+    expect(formatGeo({ country: "South Korea", region: "Gyeonggi-do", city: "Suwon" })).toBe("대한민국 · 경기도 · 수원");
+  });
+
+  it("표에 없는 이름은 영문 그대로 둔다", () => {
+    expect(formatGeo({ country: "Iceland", region: "Capital Region", city: "Reykjavik" })).toBe("Iceland · Capital Region · Reykjavik");
+  });
+
   it("정보가 없으면 알 수 없음", () => {
     expect(formatGeo(undefined)).toBe("알 수 없음");
   });
