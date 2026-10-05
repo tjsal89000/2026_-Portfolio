@@ -109,9 +109,14 @@ export default function Sidebar({ view, onNavigate, mobileOpen, onMobileClose }:
   const drawerContent = (
     <>
       <Toolbar>
-        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
-          결제 AIOps 관제
-        </Typography>
+        <Box>
+          <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+            결제 AIOps 관제
+          </Typography>
+          <Typography variant="caption" noWrap sx={{ color: "#8B98A5", display: "block" }}>
+            AI for IT Operations
+          </Typography>
+        </Box>
       </Toolbar>
       <List sx={{ px: 1 }}>
         {NAV_ITEMS.map((item) => (
