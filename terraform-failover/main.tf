@@ -84,6 +84,24 @@ resource "aws_iam_role_policy" "spot" {
         Effect   = "Allow"
         Action   = ["ce:GetCostAndUsage"]
         Resource = "*"
+      },
+      {
+        # 교체용 인스턴스가 비밀값을 SSM에서 읽는다 (/aiops/ 아래만)
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
+        Resource = "arn:aws:ssm:${var.region}:*:parameter/aiops/*"
+      },
+      {
+        # 공개 서버의 sync 스크립트가 비밀값을 SSM에 쓴다 (/aiops/ 아래만)
+        Effect   = "Allow"
+        Action   = ["ssm:PutParameter"]
+        Resource = "arn:aws:ssm:${var.region}:*:parameter/aiops/*"
+      },
+      {
+        # 교체용 인스턴스가 준비되면 대기 인스턴스를 끈다 (대기 인스턴스 하나만)
+        Effect   = "Allow"
+        Action   = ["ec2:StopInstances"]
+        Resource = "arn:aws:ec2:${var.region}:*:instance/${var.standby_instance_id}"
       }
     ]
   })
@@ -141,8 +159,17 @@ resource "aws_instance" "spot" {
 
 data "archive_file" "failover" {
   type        = "zip"
-  source_file = "${path.module}/lambda/failover.py"
   output_path = "${path.module}/lambda/failover.zip"
+
+  # 교체용 인스턴스의 부팅 스크립트(spot_bootstrap.sh)도 같이 넣는다. 테스트 파일은 제외한다.
+  source {
+    filename = "failover.py"
+    content  = file("${path.module}/lambda/failover.py")
+  }
+  source {
+    filename = "spot_bootstrap.sh"
+    content  = file("${path.module}/lambda/spot_bootstrap.sh")
+  }
 }
 
 resource "aws_iam_role" "failover" {
@@ -179,6 +206,18 @@ resource "aws_iam_role_policy" "failover" {
         Effect   = "Allow"
         Action   = ["ec2:AssociateAddress"]
         Resource = "*"
+      },
+      {
+        # 교체용 Spot 인스턴스 생성 (Spot 한 번 요청, 같은 네트워크/보안그룹/프로필)
+        Effect   = "Allow"
+        Action   = ["ec2:RunInstances", "ec2:CreateTags"]
+        Resource = "*"
+      },
+      {
+        # 교체용 인스턴스에 instance profile을 붙이려면 역할 전달 권한이 필요하다
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
+        Resource = aws_iam_role.spot.arn
       }
     ]
   })
@@ -195,8 +234,16 @@ resource "aws_lambda_function" "failover" {
 
   environment {
     variables = {
-      STANDBY_INSTANCE_ID = var.standby_instance_id
-      EIP_ALLOCATION_ID   = aws_eip.this.allocation_id
+      STANDBY_INSTANCE_ID              = var.standby_instance_id
+      EIP_ALLOCATION_ID                = aws_eip.this.allocation_id
+      REGION                           = var.region
+      GITHUB_REPO_URL                  = var.github_repo_url
+      REPLACEMENT_AMI_ID               = data.aws_ami.ubuntu.id
+      REPLACEMENT_SUBNET_ID            = aws_instance.spot.subnet_id
+      REPLACEMENT_SECURITY_GROUP_ID    = data.aws_security_group.this.id
+      REPLACEMENT_KEY_NAME             = data.aws_key_pair.this.key_name
+      REPLACEMENT_INSTANCE_PROFILE     = aws_iam_instance_profile.spot.name
+      REPLACEMENT_INSTANCE_TYPE        = var.spot_instance_type
     }
   }
 }
