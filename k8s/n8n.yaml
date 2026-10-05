@@ -38,8 +38,11 @@ spec:
               value: "n8n.ygrhash.dev"
             - name: N8N_EDITOR_BASE_URL
               value: "https://n8n.ygrhash.dev/"
-            - name: WEBHOOK_URL
+            - name: N8N_WEBHOOK_URL
               value: "https://n8n.ygrhash.dev/"
+            # 힙 상한을 컨테이너 메모리 한도 안쪽으로 맞춘다 (기본값으로 두면 시작 중 OOM으로 재시작 반복)
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=768"
             # 앞단 nginx 한 단계를 신뢰해서 실제 접속 주소(X-Forwarded-*)를 쓰게 한다
             - name: N8N_PROXY_HOPS
               value: "1"
@@ -49,8 +52,8 @@ spec:
             - name: N8N_SECURE_COOKIE
               value: "true"
           resources:
-            requests: { cpu: "50m", memory: "256Mi" }
-            limits: { cpu: "500m", memory: "512Mi" }
+            requests: { cpu: "50m", memory: "512Mi" }
+            limits: { cpu: "500m", memory: "1Gi" }
           volumeMounts:
             - name: data
               mountPath: /home/node/.n8n
