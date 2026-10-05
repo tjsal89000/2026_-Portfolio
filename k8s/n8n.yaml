@@ -28,8 +28,20 @@ spec:
           ports:
             - containerPort: 5678
           env:
+            # HTTPS 전용 도메인(n8n.ygrhash.dev) 뒤에서 동작한다. nginx가 TLS를 끝내고 http로 넘긴다.
+            - name: N8N_PROTOCOL
+              value: "https"
+            - name: N8N_HOST
+              value: "n8n.ygrhash.dev"
+            - name: N8N_EDITOR_BASE_URL
+              value: "https://n8n.ygrhash.dev/"
+            - name: WEBHOOK_URL
+              value: "https://n8n.ygrhash.dev/"
+            # 앞단 nginx 한 단계를 신뢰해서 실제 접속 주소(X-Forwarded-*)를 쓰게 한다
+            - name: N8N_PROXY_HOPS
+              value: "1"
             - name: N8N_SECURE_COOKIE
-              value: "false" # 로컬/데모 환경이라 완화 (실서비스 배포 시 재검토)
+              value: "true"
           resources:
             requests: { cpu: "50m", memory: "256Mi" }
             limits: { cpu: "500m", memory: "512Mi" }

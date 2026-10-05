@@ -37,8 +37,9 @@ data:
             proxy_set_header X-Forwarded-Host $host;
         }
 
+        # n8n은 전용 도메인(HTTPS)으로 옮겼다 - 예전 NodePort(http:30678) 대신 여기로 보낸다
         location /n8n/ {
-            return 302 http://$host:30678/;
+            return 302 https://n8n.ygrhash.dev/;
         }
 
         location /prometheus/ {
@@ -67,6 +68,27 @@ data:
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host $host;
+        }
+    }
+
+    # n8n 전용 도메인 (HTTPS). 서브패스가 아니라 루트에 붙이므로 n8n의 내부 경로가 깨지지 않는다.
+    # WebSocket(에디터 실시간 연결)을 위해 Upgrade 헤더를 넘긴다.
+    server {
+        listen 443 ssl;
+        server_name n8n.ygrhash.dev;
+        ssl_certificate     /etc/nginx/n8n-certs/tls.crt;
+        ssl_certificate_key /etc/nginx/n8n-certs/tls.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://n8n:5678;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 3600s;
         }
     }
 ---
@@ -98,6 +120,9 @@ spec:
             - name: tls
               mountPath: /etc/nginx/certs
               readOnly: true
+            - name: n8n-tls
+              mountPath: /etc/nginx/n8n-certs
+              readOnly: true
       volumes:
         - name: config
           configMap:
@@ -106,6 +131,9 @@ spec:
         - name: tls
           secret:
             secretName: aiops-tls
+        - name: n8n-tls
+          secret:
+            secretName: n8n-tls
 ---
 # 클러스터 밖에서 접근하는 단일 진입점 - 로컬의 "http://localhost"에 해당.
 # 실제 배포(Phase 12, Terraform)에서는 EC2의 공인 IP:30080으로 접근하게 된다.
