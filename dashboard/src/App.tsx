@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import Sidebar, { DRAWER_WIDTH } from "./layout/Sidebar";
 import TopBar from "./layout/TopBar";
@@ -15,9 +15,27 @@ const TestsPage = lazy(() => import("./pages/TestsPage"));
 const ArchitecturePage = lazy(() => import("./pages/ArchitecturePage"));
 const TroubleshootingPage = lazy(() => import("./pages/TroubleshootingPage"));
 
+const VIEW_KEYS: ViewKey[] = ["about", "overview", "ops", "progress", "tests", "infra", "architecture", "troubleshooting"];
+
+function viewFromHash(): ViewKey {
+  const key = window.location.hash.replace("#", "");
+  return (VIEW_KEYS as string[]).includes(key) ? (key as ViewKey) : "about";
+}
+
 export default function App() {
-  // 방문하면 소개 화면부터 보여준다 (실시간 모니터링은 메뉴에서 선택)
-  const [view, setView] = useState<ViewKey>("about");
+  // 메뉴 상태를 주소 해시(#ops 등)와 맞춘다. 새로고침하거나 링크를 공유해도 같은 메뉴가 열린다.
+  // 해시가 없거나 모르는 값이면 소개 화면을 보여준다.
+  const [view, setViewState] = useState<ViewKey>(viewFromHash);
+
+  useEffect(() => {
+    const onHashChange = () => setViewState(viewFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  const setView = (next: ViewKey) => {
+    window.location.hash = next; // hashchange 이벤트가 상태를 갱신한다
+  };
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
