@@ -20,6 +20,7 @@ import { getRecentPayments } from "./payments.js";
 import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
 import { getCostSummary } from "./cost.js";
+import { getStats } from "./stats.js";
 
 const REPORT_GENERATE_URL = process.env.REPORT_GENERATE_URL ?? "http://report-agent:8092/generate";
 import { chaosStatus, isChaosEnabled, pauseConsumer, startBurst } from "./chaos.js";
@@ -112,6 +113,16 @@ app.get("/ops/cost", async (_req, res) => {
         ? "이 환경에서는 비용 조회 권한이 없습니다 (장애 전환용 대기 인스턴스 등)"
         : "비용 정보를 지금 가져올 수 없습니다. 잠시 후 다시 확인해 주세요",
     });
+  }
+});
+
+// 통계 화면: 결제 집계와 알림 집계 (1분 캐시)
+app.get("/ops/stats", async (_req, res) => {
+  try {
+    res.json(await getStats());
+  } catch (err) {
+    console.error("[/ops/stats] 집계 실패:", (err as Error).message);
+    res.json({ error: "통계를 지금 가져올 수 없습니다. 잠시 후 다시 확인해 주세요" });
   }
 });
 

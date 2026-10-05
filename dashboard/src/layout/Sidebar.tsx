@@ -11,6 +11,7 @@ import InsightsIcon from "@mui/icons-material/InsightsOutlined";
 import AccountTreeIcon from "@mui/icons-material/AccountTreeOutlined";
 import QueryStatsIcon from "@mui/icons-material/QueryStatsOutlined";
 import SpeedIcon from "@mui/icons-material/SpeedOutlined";
+import PieChartOutlinedIcon from "@mui/icons-material/PieChartOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNewOutlined";
 import {
@@ -41,6 +42,7 @@ const NAV_ITEMS: { label: string; icon: ReactElement; view: ViewKey }[] = [
   { label: "소개", icon: <InfoOutlinedIcon />, view: "about" },
   { label: "실시간 모니터링", icon: <DashboardIcon />, view: "overview" },
   { label: "운영 지표", icon: <SpeedIcon />, view: "ops" },
+  { label: "통계", icon: <PieChartOutlinedIcon />, view: "stats" },
   { label: "진행 상황", icon: <ChecklistIcon />, view: "progress" },
   { label: "테스트 코드", icon: <ScienceIcon />, view: "tests" },
   { label: "인프라 현황", icon: <DnsIcon />, view: "infra" },

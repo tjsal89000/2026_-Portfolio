@@ -9,13 +9,14 @@ import type { ViewKey } from "./viewKey";
 // 기본 화면(실시간 모니터링)만 바로 불러오고, 나머지 메뉴는 누를 때 따로 받는다.
 // 이전에는 모든 화면과 차트 라이브러리가 한 파일(620kB)로 묶여서 첫 화면이 무겁게 떴다.
 const OpsPage = lazy(() => import("./pages/OpsPage"));
+const StatsPage = lazy(() => import("./pages/StatsPage"));
 const ProgressPage = lazy(() => import("./pages/ProgressPage"));
 const InfraPage = lazy(() => import("./pages/InfraPage"));
 const TestsPage = lazy(() => import("./pages/TestsPage"));
 const ArchitecturePage = lazy(() => import("./pages/ArchitecturePage"));
 const TroubleshootingPage = lazy(() => import("./pages/TroubleshootingPage"));
 
-const VIEW_KEYS: ViewKey[] = ["about", "overview", "ops", "progress", "tests", "infra", "architecture", "troubleshooting"];
+const VIEW_KEYS: ViewKey[] = ["about", "overview", "ops", "stats", "progress", "tests", "infra", "architecture", "troubleshooting"];
 
 function viewFromHash(): ViewKey {
   const key = window.location.hash.replace("#", "");
@@ -66,6 +67,7 @@ export default function App() {
           {view === "about" && <AboutPage />}
           {view === "overview" && <OverviewPage />}
           {view === "ops" && <OpsPage />}
+          {view === "stats" && <StatsPage />}
           {view === "progress" && <ProgressPage />}
           {view === "tests" && <TestsPage />}
           {view === "infra" && <InfraPage />}
