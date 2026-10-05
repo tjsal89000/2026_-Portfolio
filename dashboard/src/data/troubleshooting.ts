@@ -23,12 +23,3 @@ export const PROJECT_CASES: TroubleshootingCase[] = [
   { number: 2, title: "분산 트레이싱(OTel+Tempo) 구축 - 3중으로 겹친 문제", tags: ["OpenTelemetry", "Tempo", "Spring Boot"] },
   { number: 1, title: "Spring Kafka JsonSerializer가 기본 설정으로는 못 쓰는 상태였음", tags: ["Spring Kafka", "Jackson"] },
 ];
-
-export interface PreviousCompanyCase {
-  title: string;
-  company?: string;
-  markdown: string;
-}
-
-// 이전 회사 경험은 내가 알 수 없는 내용이라 비워둠 - 알려주는 대로 여기 채워 넣는다.
-export const PREVIOUS_COMPANY_CASES: PreviousCompanyCase[] = [];

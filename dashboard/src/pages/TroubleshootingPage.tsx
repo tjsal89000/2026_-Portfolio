@@ -14,7 +14,7 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import OpenInNewIcon from "@mui/icons-material/OpenInNewOutlined";
 import { GITHUB_BRANCH, GITHUB_REPO } from "../data/testSuites";
-import { PREVIOUS_COMPANY_CASES, PROJECT_CASES } from "../data/troubleshooting";
+import { PROJECT_CASES } from "../data/troubleshooting";
 import MarkdownLite from "../components/MarkdownLite";
 
 const LOG_PATH = "docs/문제해결_로그.md";
@@ -111,25 +111,6 @@ export default function TroubleshootingPage() {
           ))}
         </Paper>
 
-        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 700 }}>
-          이전 회사에서 겪은 문제
-        </Typography>
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-          {PREVIOUS_COMPANY_CASES.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              아직 비어있음 - 실제 경험을 알려주면 여기에 같은 형식으로 추가한다.
-            </Typography>
-          ) : (
-            PREVIOUS_COMPANY_CASES.map((c) => (
-              <Box key={c.title} sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {c.title}
-                </Typography>
-                <MarkdownLite markdown={c.markdown} />
-              </Box>
-            ))
-          )}
-        </Paper>
       </Box>
     </>
   );
