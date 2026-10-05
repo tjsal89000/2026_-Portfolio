@@ -104,7 +104,14 @@ app.get("/ops/cost", async (_req, res) => {
   try {
     res.json(await getCostSummary());
   } catch (err) {
-    res.json({ error: (err as Error).message });
+    // 권한 오류 메시지에는 계정과 역할 ARN이 들어 있으니 공개 응답에는 그대로 내보내지 않는다
+    const message = (err as Error).message;
+    const denied = /AccessDenied|not authorized|is not authorized/i.test(message);
+    res.json({
+      error: denied
+        ? "이 환경에서는 비용 조회 권한이 없습니다 (장애 전환용 대기 인스턴스 등)"
+        : "비용 정보를 지금 가져올 수 없습니다. 잠시 후 다시 확인해 주세요",
+    });
   }
 });
 
