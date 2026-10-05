@@ -5,18 +5,33 @@ import TopBar from "./layout/TopBar";
 import OverviewPage from "./pages/OverviewPage";
 import AboutPage from "./pages/AboutPage";
 import type { ViewKey } from "./viewKey";
+import { API_ORIGIN } from "./apiOrigin";
 
 // 기본 화면(실시간 모니터링)만 바로 불러오고, 나머지 메뉴는 누를 때 따로 받는다.
 // 이전에는 모든 화면과 차트 라이브러리가 한 파일(620kB)로 묶여서 첫 화면이 무겁게 떴다.
 const OpsPage = lazy(() => import("./pages/OpsPage"));
 const StatsPage = lazy(() => import("./pages/StatsPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ProgressPage = lazy(() => import("./pages/ProgressPage"));
 const InfraPage = lazy(() => import("./pages/InfraPage"));
 const TestsPage = lazy(() => import("./pages/TestsPage"));
 const ArchitecturePage = lazy(() => import("./pages/ArchitecturePage"));
 const TroubleshootingPage = lazy(() => import("./pages/TroubleshootingPage"));
 
-const VIEW_KEYS: ViewKey[] = ["about", "overview", "ops", "stats", "progress", "tests", "infra", "architecture", "troubleshooting"];
+const VIEW_KEYS: ViewKey[] = ["about", "overview", "ops", "stats", "progress", "tests", "infra", "architecture", "troubleshooting", "admin"];
+
+// 방문자를 구분하는 임의 값. 브라우저에 저장되며 개인을 식별하지 않는다.
+function getVisitorId(): string {
+  try {
+    const saved = localStorage.getItem("aiops-visitor-id");
+    if (saved) return saved;
+    const id = crypto.randomUUID();
+    localStorage.setItem("aiops-visitor-id", id);
+    return id;
+  } catch {
+    return `anon-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+  }
+}
 
 const VIEW_LABELS: Record<ViewKey, string> = {
   about: "소개",
@@ -28,6 +43,7 @@ const VIEW_LABELS: Record<ViewKey, string> = {
   infra: "인프라 현황",
   architecture: "인프라 구성도",
   troubleshooting: "트러블슈팅",
+  admin: "관리자",
 };
 
 function viewFromHash(): ViewKey {
@@ -49,6 +65,18 @@ export default function App() {
   const setView = (next: ViewKey) => {
     window.location.hash = next; // hashchange 이벤트가 상태를 갱신한다
   };
+
+  // 메뉴를 열 때마다 방문 한 건을 남긴다. 실패해도 화면에는 영향이 없다.
+  useEffect(() => {
+    if (view === "admin") return; // 관리자 화면 열람은 방문 기록에 넣지 않는다
+    fetch(`${API_ORIGIN}/ws-server/ops/visit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ view, visitorId: getVisitorId() }),
+    }).catch(() => {
+      // 방문 기록 실패는 무시한다
+    });
+  }, [view]);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -80,6 +108,7 @@ export default function App() {
           {view === "overview" && <OverviewPage />}
           {view === "ops" && <OpsPage />}
           {view === "stats" && <StatsPage />}
+          {view === "admin" && <AdminPage />}
           {view === "progress" && <ProgressPage />}
           {view === "tests" && <TestsPage />}
           {view === "infra" && <InfraPage />}
