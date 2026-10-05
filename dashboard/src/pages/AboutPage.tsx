@@ -9,7 +9,7 @@ const FLOW = [
   { title: "결제 API → Kafka", desc: "게이트웨이를 거쳐 결제 API가 요청을 검증하고 Kafka 토픽에 발행한다." },
   { title: "DB 저장", desc: "Kafka를 읽는 컨슈머가 중복 없이(멱등) Postgres에 저장하고, 실시간 카운터를 Redis에 갱신한다." },
   { title: "이상탐지", desc: "Redis 임계치와 이벤트 내용으로 이상 패턴을 찾아 알림을 보낸다." },
-  { title: "n8n 중계", desc: "알림은 n8n 웹훅을 거쳐 게이트웨이로 전달되고, 대시보드와 타임라인에 나타난다." },
+  { title: "n8n 중계", desc: "알림은 비밀 헤더로 보호된 n8n 웹훅을 거쳐 게이트웨이로 전달되고, 대시보드와 타임라인에 나타난다." },
   { title: "AI 리포트", desc: "Gemini가 MCP 도구로 Kafka·Redis·Postgres를 직접 조회해 운영 리포트를 작성한다." },
 ];
 
@@ -23,6 +23,59 @@ const MENUS: { label: string; view: ViewKey; desc: string }[] = [
   { label: "인프라 구성도", view: "architecture", desc: "데이터 흐름 다이어그램, 컴포넌트 설명, 인프라 선택 비교." },
   { label: "트러블슈팅", view: "troubleshooting", desc: "실제로 겪은 문제와 해결 과정을 STAR 형식으로 기록." },
 ];
+
+// 실제로 구현하고 확인한 것만 강점으로 적는다. 한계도 같이 밝힌다.
+const STRENGTHS: { title: string; points: string[] }[] = [
+  {
+    title: "측정으로 판단한다",
+    points: [
+      "부하 테스트를 구간별 2분씩 독립 측정해서, 단일 노드의 안정 한계를 65~70 TPS(p95 500ms 기준)로 확인했다.",
+      "짧은 샘플의 555ms가 2분 재측정에서 191ms로 달라진 것을 보고, 짧은 샘플을 믿지 않는 기준을 세웠다.",
+      "SLO와 에러 예산을 계산해서 '목표를 지키고 있는가'를 숫자로 보여준다.",
+    ],
+  },
+  {
+    title: "장애를 직접 재현해서 본다",
+    points: [
+      "Kafka 소비 지연을 주입해서 Consumer Lag이 올라갔다가 0으로 돌아오는 과정을 화면에서 볼 수 있다.",
+      "consumer 그룹이 잘못 바뀌어 과거 메시지를 다시 읽던 문제를 찾아 원인을 분석하고 고쳤다. 중복은 멱등 처리로 DB에 들어가지 않았다.",
+      "장애 시연 버튼은 시간, TPS, 쿨다운으로 제한해서 누가 눌러도 시스템이 연속으로 흔들리지 않게 했다.",
+    ],
+  },
+  {
+    title: "보안을 설계에 넣는다",
+    points: [
+      "공개 웹훅은 비밀 헤더가 맞을 때만 알림을 중계한다. 비밀값은 Kubernetes Secret에만 있고 저장소에는 없다.",
+      "AI 리포트는 Gemini 무료 한도를 지키려고 서버에서 5분에 한 번만 생성되게 제한했다.",
+      "장애 주입 기능은 설정 스위치 하나로 끌 수 있다.",
+    ],
+  },
+  {
+    title: "비용을 의식한다",
+    points: [
+      "Spot 인스턴스로 운영하고, 회수 시 대기 인스턴스로 넘어가는 자동 전환 경로를 만들었다 (실측 검증은 아직).",
+      "Cost Explorer는 조회당 과금이 있어서 1시간 캐시로 호출을 줄였다. 권한도 조회 전용으로 최소화했다.",
+      "오라클 무료 인스턴스와 EKS를 검토하고, 규모에 맞지 않아 택하지 않은 이유를 기록했다.",
+    ],
+  },
+  {
+    title: "자동화된 흐름",
+    points: [
+      "이상탐지 알림은 n8n 워크플로우를 거쳐 중계되고, 화면에서 'n8n 경유' 여부를 확인할 수 있다.",
+      "AI 리포트는 LLM이 MCP 도구를 직접 호출해서 데이터를 조회한 뒤 작성한다.",
+      "GitHub Actions가 push마다 서비스 테스트를 돌리고, 부하 테스트도 버튼 하나로 실행한다.",
+    ],
+  },
+  {
+    title: "기록으로 설명한다",
+    points: [
+      "설계 결정 10건(ADR)과 실제로 겪은 문제 12건(STAR 형식)을 남겼다. 왜 그렇게 했는지를 설명할 수 있게 하는 것이 목적이다.",
+      "진행 상황과 남은 보완점을 화면에 공개해서, 무엇이 끝났고 무엇이 남았는지 숨기지 않는다.",
+    ],
+  },
+];
+
+const FLOW_ACTIVE = -1;
 
 const STACK = ["Java 17 · Spring Boot", "Python · 에이전트", "TypeScript · Node.js · React", "Kafka", "Redis", "PostgreSQL", "Prometheus · Grafana · Tempo", "n8n", "Gemini · MCP", "k3s · Docker", "Terraform · AWS"];
 
@@ -48,10 +101,34 @@ export default function AboutPage() {
         </Paper>
 
         <Typography variant="h6" sx={{ mb: 1 }}>
+          핵심 강점
+        </Typography>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {STRENGTHS.map((s) => (
+            <Grid key={s.title} size={{ xs: 12, md: 6 }}>
+              <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                  {s.title}
+                </Typography>
+                <Box component="ul" sx={{ pl: 2.5, m: 0 }}>
+                  {s.points.map((p) => (
+                    <li key={p}>
+                      <Typography variant="body2" color="text.secondary">
+                        {p}
+                      </Typography>
+                    </li>
+                  ))}
+                </Box>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+
+        <Typography variant="h6" sx={{ mb: 1 }}>
           데이터 흐름
         </Typography>
         <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-          <Stepper orientation="vertical" activeStep={-1}>
+          <Stepper orientation="vertical" activeStep={FLOW_ACTIVE}>
             {FLOW.map((step) => (
               <Step key={step.title} active>
                 <StepLabel>
