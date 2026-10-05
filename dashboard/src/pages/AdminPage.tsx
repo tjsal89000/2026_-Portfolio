@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Avatar, Box, Button, Chip, Grid, Paper, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Toolbar, Typography } from "@mui/material";
+import { Alert, Avatar, Box, Button, Chip, Grid, Link, Paper, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Toolbar, Typography } from "@mui/material";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import KpiCard from "../components/KpiCard";
@@ -279,7 +279,20 @@ export default function AdminPage() {
                       <Chip size="small" variant="outlined" color={KIND_COLOR[e.kind]} label={KIND_LABEL[e.kind]} />
                     </TableCell>
                     <TableCell>{describeEvent(e)}</TableCell>
-                    <TableCell>{e.location}</TableCell>
+                    <TableCell>
+                      {e.location === "알 수 없음" || e.location === "내부망" ? (
+                        e.location
+                      ) : (
+                        <Link
+                          href={`https://map.naver.com/p/search/${encodeURIComponent(e.location.replace(/ · /g, " "))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          underline="hover"
+                        >
+                          {e.location}
+                        </Link>
+                      )}
+                    </TableCell>
                     <TableCell sx={{ fontFamily: "monospace", whiteSpace: "nowrap" }}>{e.ip}</TableCell>
                     <TableCell sx={{ whiteSpace: "nowrap" }}>{e.userAgent}</TableCell>
                     <TableCell sx={{ fontFamily: "monospace" }}>{e.visitor}</TableCell>
