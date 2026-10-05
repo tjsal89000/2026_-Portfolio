@@ -59,6 +59,13 @@ spec:
             # 장애 주입 스위치. 누구나 버튼을 누를 수 있지만 서버가 시간·TPS·쿨다운으로 제한한다. 끄려면 "false".
             - name: CHAOS_ENABLED
               value: "true"
+            # 관리자 페이지 토큰. Secret admin-secrets(키 ADMIN_TOKEN)에서만 읽는다. 없으면 관리자 기능이 꺼진다.
+            - name: ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: admin-secrets
+                  key: ADMIN_TOKEN
+                  optional: true
             - name: POSTGRES_HOST
               value: "postgres"
             - name: POSTGRES_PORT

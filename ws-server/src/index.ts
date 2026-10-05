@@ -21,6 +21,7 @@ import { getCiRuns, getRecentTraces, getSlo, getTrace } from "./ops.js";
 import { ensureAlertTable, getTimeline, saveAlert } from "./incidents.js";
 import { getCostSummary } from "./cost.js";
 import { getStats, startStatsRefresh } from "./stats.js";
+import { KNOWN_VIEWS, ensureVisitTable, getVisitSummary, isAdminEnabled, isAdminToken, recordVisit, startVisitCleanup } from "./visits.js";
 
 const REPORT_GENERATE_URL = process.env.REPORT_GENERATE_URL ?? "http://report-agent:8092/generate";
 import { chaosStatus, isChaosEnabled, pauseConsumer, startBurst } from "./chaos.js";
@@ -29,6 +30,8 @@ const PORT = 8096;
 
 const app = express();
 app.use(express.json());
+// nginx가 앞단에서 X-Forwarded-For로 실제 접속 IP를 넘긴다. 방문 기록에 그 IP를 쓰기 위해 프록시 헤더를 신뢰한다.
+app.set("trust proxy", true);
 
 // 다른 세 엔드포인트와 달리 이 라우트만 try/catch가 없었던 게 실제 장애로 드러났다 - Postgres가
 // 잠깐 죽었을 때 getLatestReports()가 던진 예외가 처리되지 않은 Promise 거부로 남아
@@ -113,6 +116,41 @@ app.get("/ops/cost", async (_req, res) => {
         ? "이 환경에서는 비용 조회 권한이 없습니다 (장애 전환용 대기 인스턴스 등)"
         : "비용 정보를 지금 가져올 수 없습니다. 잠시 후 다시 확인해 주세요",
     });
+  }
+});
+
+// 방문 기록: 화면에서 메뉴를 열 때마다 호출한다 (로그인 없이 누구나 보낼 수 있으므로 메뉴 이름만 받는다)
+app.post("/ops/visit", async (req, res) => {
+  const view = String(req.body?.view ?? "");
+  const visitorId = String(req.body?.visitorId ?? "");
+  if (!KNOWN_VIEWS.includes(view) || visitorId.length < 8) {
+    res.status(400).json({ ok: false });
+    return;
+  }
+  try {
+    await recordVisit({ visitorId, ip: req.ip ?? "", userAgent: req.get("user-agent") ?? "", view });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[방문 기록 실패]", (err as Error).message);
+    res.status(500).json({ ok: false });
+  }
+});
+
+// 관리자 조회: ADMIN_TOKEN 헤더가 맞아야 한다. 토큰이 설정되지 않았으면 기능 자체가 없는 것처럼 404.
+app.get("/ops/admin/visits", async (req, res) => {
+  if (!isAdminEnabled()) {
+    res.status(404).json({ error: "not found" });
+    return;
+  }
+  if (!isAdminToken(req.get("x-admin-token"))) {
+    res.status(401).json({ error: "관리자 토큰이 맞지 않습니다" });
+    return;
+  }
+  try {
+    res.json(await getVisitSummary());
+  } catch (err) {
+    console.error("[방문 조회 실패]", (err as Error).message);
+    res.status(500).json({ error: "방문 기록을 지금 가져올 수 없습니다" });
   }
 });
 
@@ -232,6 +270,9 @@ wss.on("connection", (ws) => {
 ensureAlertTable().catch((err) => console.error("[alert_log 준비 실패]", (err as Error).message));
 // 통계는 백그라운드에서 미리 집계해 둔다 (화면이 열릴 때 1초 넘게 기다리지 않도록)
 startStatsRefresh();
+// 방문 기록 테이블을 준비하고, 30일 넘은 기록을 정리한다
+ensureVisitTable().catch((err) => console.error("[방문 테이블 준비 실패]", (err as Error).message));
+startVisitCleanup();
 
 server.listen(PORT, () => {
   console.log(`[WebSocket 서버 시작] 포트 ${PORT} (GET /reports/latest, WS /ws)`);

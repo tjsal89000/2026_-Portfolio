@@ -68,6 +68,8 @@ data:
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host $host;
+            # 방문 기록에 실제 접속 IP를 남기려고 원래 클라이언트 주소를 전달한다
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
     }
 
