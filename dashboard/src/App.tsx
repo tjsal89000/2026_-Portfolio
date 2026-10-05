@@ -18,6 +18,18 @@ const TroubleshootingPage = lazy(() => import("./pages/TroubleshootingPage"));
 
 const VIEW_KEYS: ViewKey[] = ["about", "overview", "ops", "stats", "progress", "tests", "infra", "architecture", "troubleshooting"];
 
+const VIEW_LABELS: Record<ViewKey, string> = {
+  about: "소개",
+  overview: "실시간 모니터링",
+  ops: "운영 지표",
+  stats: "통계",
+  progress: "진행 상황",
+  tests: "테스트 코드",
+  infra: "인프라 현황",
+  architecture: "인프라 구성도",
+  troubleshooting: "트러블슈팅",
+};
+
 function viewFromHash(): ViewKey {
   const key = window.location.hash.replace("#", "");
   return (VIEW_KEYS as string[]).includes(key) ? (key as ViewKey) : "about";
@@ -47,7 +59,7 @@ export default function App() {
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
-      <TopBar onMenuClick={() => setMobileOpen(true)} />
+      <TopBar onMenuClick={() => setMobileOpen(true)} title={VIEW_LABELS[view]} />
       <Box
         component="main"
         sx={{

@@ -2,14 +2,16 @@ import { AppBar, Box, IconButton, Toolbar, Tooltip, Typography } from "@mui/mate
 import MenuIcon from "@mui/icons-material/Menu";
 import LightModeIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeIcon from "@mui/icons-material/DarkModeOutlined";
+import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import { DRAWER_WIDTH } from "./Sidebar";
 import { useThemeMode } from "../context/ThemeModeContext";
 
 interface TopBarProps {
   onMenuClick: () => void;
+  title: string; // 지금 보고 있는 메뉴 이름
 }
 
-export default function TopBar({ onMenuClick }: TopBarProps) {
+export default function TopBar({ onMenuClick, title }: TopBarProps) {
   const { mode, toggleMode } = useThemeMode();
 
   return (
@@ -36,7 +38,8 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6">개요</Typography>
+          <MonitorHeartOutlinedIcon sx={{ color: "primary.main" }} />
+          <Typography variant="h6">{title}</Typography>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Tooltip title={mode === "light" ? "다크 모드로 전환" : "라이트 모드로 전환"}>
